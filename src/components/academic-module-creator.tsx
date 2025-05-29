@@ -48,54 +48,52 @@ export function AcademicModuleCreator() {
   useEffect(() => {
     const audioElement = audioRef.current;
 
-    // audioElement will be null if the <audio> tag isn't rendered (due to !isPreviewReady or !audioDataUri)
-    // or if it's being remounted due to the 'key' prop.
-    if (!isClient || !audioElement || !audioDataUri) {
-        // If audioElement exists but audioDataUri is null (or audio element is about to unmount), perform cleanup.
-        if (audioElement && !audioDataUri) {
-            audioElement.pause();
-            audioElement.currentTime = 0;
-            if (audioElement.src) audioElement.src = ""; // Clear src to stop loading/playing
-        }
-        return;
+    if (!isClient || !audioElement) {
+      // If not client-side or audio element not available, do nothing.
+      // Cleanup for previous state handled by key prop or when audioDataUri becomes null.
+      return;
     }
 
-    // At this point, isClient is true, audioElement exists, and audioDataUri is valid.
-    // The 'key' prop on <audio> ensures this effect runs on a fresh element if audioDataUri changed.
-    
-    // Set src if not already set (e.g., on first mount with this key, or if src was cleared)
-    if (audioElement.src !== audioDataUri) {
+    if (audioDataUri) {
+      // Audio data is available.
+      if (audioElement.src !== audioDataUri) {
         audioElement.src = audioDataUri;
-    }
+        audioElement.load(); // Explicitly call load after setting src.
+      }
 
-    // Attempt to play.
-    // The browser might block this if there was no prior user interaction.
-    const playPromise = audioElement.play();
-    if (playPromise !== undefined) {
+      const playPromise = audioElement.play();
+      if (playPromise !== undefined) {
         playPromise.catch(err => {
-            console.error("Audio autoplay/play failed:", err);
-            if (err.name === 'NotAllowedError' || err.name === 'NotSupportedError') {
-                toast({
-                    title: "Audio Playback Notice",
-                    description: "Audio autoplay was blocked by the browser. Please use the provided controls to play the narration.",
-                    variant: "default"
-                });
-            } else {
-                toast({
-                    title: "Audio Playback Error",
-                    description: "Could not play audio. Please check the console for details or try again.",
-                    variant: "destructive"
-                });
-            }
+          console.error("Audio autoplay/play failed:", err);
+          if (err.name === 'NotAllowedError' || err.name === 'NotSupportedError') {
+            toast({
+              title: "Audio Playback Notice",
+              description: "Audio autoplay was blocked by the browser. Please use the provided controls to play the narration.",
+              variant: "default"
+            });
+          } else {
+            toast({
+              title: "Audio Playback Error",
+              description: `Could not play audio: ${err.message || 'Unknown error'}. Audio data might be invalid or corrupted.`,
+              variant: "destructive"
+            });
+          }
         });
+      }
+    } else {
+      // No audioDataUri, ensure player is reset if it was previously used.
+      audioElement.pause();
+      audioElement.currentTime = 0;
+      if (audioElement.src) {
+        audioElement.src = ""; // Clear src to stop loading/playing
+      }
     }
 
     return () => {
-        // Cleanup when the component unmounts or dependencies cause this effect instance
-        // to be cleaned up (e.g. audioDataUri becomes null, <audio> unmounts).
-        if (audioElement) {
-            audioElement.pause();
-        }
+      // Cleanup when component unmounts or effect re-runs due to dependency changes.
+      if (audioElement) {
+        audioElement.pause();
+      }
     };
   }, [isClient, audioDataUri, toast]);
 
@@ -117,7 +115,7 @@ export function AcademicModuleCreator() {
     setGeneratedImage(null);
     setAnimationCode(null);
     setAudioScript(null);
-    setAudioDataUri(null); // This will trigger the audio useEffect to reset/cleanup
+    setAudioDataUri(null); 
 
     setIdeaGenerated(false);
     setImageGeneratedState(false);
@@ -127,11 +125,12 @@ export function AcademicModuleCreator() {
     
     setCurrentStep(""); 
 
-    // Explicitly pause and reset current audio if any
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
-      audioRef.current.src = ""; 
+      if (audioRef.current.src) { // Only try to set src if it was previously set
+         audioRef.current.src = ""; 
+      }
     }
 
     try {
@@ -178,7 +177,7 @@ export function AcademicModuleCreator() {
       const speechInput: GenerateSpeechFromTextInput = { textToSpeak: scriptOutput.audioScript };
       const speechOutput = await generateSpeechFromText(speechInput);
       if (!speechOutput.audioDataUri) throw new Error("Audio data URI is missing.");
-      setAudioDataUri(speechOutput.audioDataUri); // This triggers the audio useEffect
+      setAudioDataUri(speechOutput.audioDataUri); 
       setAudioSynthesized(true);
       toast({ title: "Audio Ready!", description: "Voiceover generated successfully." });
 
@@ -337,9 +336,8 @@ export function AcademicModuleCreator() {
                     <Film className="mr-2 h-5 w-5 sm:h-6 sm:w-6 text-accent"/>
                     Generated Module Preview
                     </h3>
-                    {/* audioDataUri is guaranteed non-null by isPreviewReady */}
                      <audio 
-                        key={audioDataUri!} // Force remount on src change
+                        key={audioDataUri!} 
                         ref={audioRef} 
                         controls 
                         className="max-w-xs sm:max-w-sm md:max-w-md h-10"
@@ -349,7 +347,7 @@ export function AcademicModuleCreator() {
                 </div>
                 <div className="flex-grow w-full border rounded-md overflow-hidden shadow-md bg-background">
                   <iframe
-                    srcDoc={animationCode!.htmlContent} // animationCode is checked by isPreviewReady
+                    srcDoc={animationCode!.htmlContent} 
                     title="Generated Module Preview"
                     className="w-full h-full"
                     sandbox="allow-scripts allow-same-origin" 
