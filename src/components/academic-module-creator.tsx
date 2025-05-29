@@ -49,49 +49,88 @@ export function AcademicModuleCreator() {
     const audioElement = audioRef.current;
 
     if (!isClient || !audioElement) {
-      // If not client-side or audio element not available, do nothing.
-      // Cleanup for previous state handled by key prop or when audioDataUri becomes null.
       return;
     }
 
+    const handleAudioError = (event: Event) => {
+      const mediaError = (event.target as HTMLAudioElement).error;
+      let errorMessage = "Audio playback failed: Unknown error.";
+      if (mediaError) {
+        switch (mediaError.code) {
+          case mediaError.MEDIA_ERR_ABORTED:
+            errorMessage = "Audio playback was aborted.";
+            break;
+          case mediaError.MEDIA_ERR_NETWORK:
+            errorMessage = "A network error caused audio download to fail.";
+            break;
+          case mediaError.MEDIA_ERR_DECODE:
+            errorMessage = "Audio playback failed: The audio data could not be decoded. The format might be corrupted or unsupported.";
+            break;
+          case mediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+            errorMessage = "Audio playback failed: The audio format is not supported by your browser or the source is invalid.";
+            break;
+          default:
+            errorMessage = `Audio playback failed with code: ${mediaError.code}`;
+        }
+      }
+      console.error("Audio Element Error:", errorMessage, mediaError);
+      toast({
+        title: "Audio Playback Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    };
+    
+    audioElement.addEventListener('error', handleAudioError);
+
     if (audioDataUri) {
-      // Audio data is available.
+      console.log("Received audioDataUri (first 100 chars):", audioDataUri.substring(0, 100));
       if (audioElement.src !== audioDataUri) {
         audioElement.src = audioDataUri;
-        audioElement.load(); // Explicitly call load after setting src.
+        audioElement.load(); 
       }
 
+      // Attempt to play only if src is set and valid (browser will try to load it)
+      // Autoplay is often blocked, so this is a best-effort attempt.
+      // The user might need to use controls regardless.
       const playPromise = audioElement.play();
       if (playPromise !== undefined) {
         playPromise.catch(err => {
-          console.error("Audio autoplay/play failed:", err);
-          if (err.name === 'NotAllowedError' || err.name === 'NotSupportedError') {
+          console.error("Audio play() promise rejected:", err);
+          if (err.name === 'NotAllowedError') {
             toast({
-              title: "Audio Playback Notice",
+              title: "Audio Autoplay Blocked",
               description: "Audio autoplay was blocked by the browser. Please use the provided controls to play the narration.",
               variant: "default"
             });
-          } else {
-            toast({
+          } else if (err.name === 'NotSupportedError') {
+             toast({
               title: "Audio Playback Error",
-              description: `Could not play audio: ${err.message || 'Unknown error'}. Audio data might be invalid or corrupted.`,
+              description: "The audio format might not be supported or the audio source is invalid. Please check the console for details.",
               variant: "destructive"
             });
+          } else {
+            // This might catch errors if load() hasn't finished or if src is truly bad
+            // The 'error' event on the audio element itself is more reliable for load failures.
+            // toast({
+            //   title: "Audio Playback Issue",
+            //   description: `Could not play audio: ${err.message || 'Unknown error'}.`,
+            //   variant: "destructive"
+            // });
           }
         });
       }
     } else {
-      // No audioDataUri, ensure player is reset if it was previously used.
       audioElement.pause();
       audioElement.currentTime = 0;
       if (audioElement.src) {
-        audioElement.src = ""; // Clear src to stop loading/playing
+        audioElement.src = ""; 
       }
     }
 
     return () => {
-      // Cleanup when component unmounts or effect re-runs due to dependency changes.
       if (audioElement) {
+        audioElement.removeEventListener('error', handleAudioError);
         audioElement.pause();
       }
     };
@@ -128,7 +167,7 @@ export function AcademicModuleCreator() {
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
-      if (audioRef.current.src) { // Only try to set src if it was previously set
+      if (audioRef.current.src) { 
          audioRef.current.src = ""; 
       }
     }
@@ -176,7 +215,7 @@ export function AcademicModuleCreator() {
       toast({ title: "Step 5: Synthesizing Audio", description: "AI is generating the voiceover..." });
       const speechInput: GenerateSpeechFromTextInput = { textToSpeak: scriptOutput.audioScript };
       const speechOutput = await generateSpeechFromText(speechInput);
-      if (!speechOutput.audioDataUri) throw new Error("Audio data URI is missing.");
+      if (!speechOutput.audioDataUri) throw new Error("Audio data URI is missing from TTS flow output.");
       setAudioDataUri(speechOutput.audioDataUri); 
       setAudioSynthesized(true);
       toast({ title: "Audio Ready!", description: "Voiceover generated successfully." });
@@ -337,10 +376,11 @@ export function AcademicModuleCreator() {
                     Generated Module Preview
                     </h3>
                      <audio 
-                        key={audioDataUri!} 
+                        key={audioDataUri} // Key helps reset the element if URI changes
                         ref={audioRef} 
                         controls 
                         className="max-w-xs sm:max-w-sm md:max-w-md h-10"
+                        // Autoplay is often blocked, controls are the reliable way
                      >
                         Your browser does not support the audio element.
                      </audio>
@@ -379,3 +419,5 @@ export function AcademicModuleCreator() {
   );
 }
 
+
+    
