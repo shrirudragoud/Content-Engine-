@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A Genkit flow to generate academic module content ideas.
@@ -17,9 +18,9 @@ export type GenerateModuleContentIdeaInput = z.infer<typeof GenerateModuleConten
 
 const GenerateModuleContentIdeaOutputSchema = z.object({
   moduleTitle: z.string().describe('A concise and engaging title for the academic module.'),
-  imagePrompt: z.string().describe('A descriptive prompt for generating a simple, text-free image. The image should be iconic, suitable for code-based animation, and visually represent the core concept. Avoid requesting text in the image.'),
-  animationConcept: z.string().describe('A brief explanation of the core concept the animation should visually represent using the generated image.'),
-  suggestedKeywords: z.array(z.string()).describe('A few keywords that can guide the animation style or elements (e.g., "reveal", "growth", "transformation", "connection", "compare").'),
+  imagePrompt: z.string().describe('A descriptive prompt for an image generation model to create a vibrant and visually engaging illustration (not a simple icon) related to the module title. The image should be colorful, clear, and suitable for an educational context. Avoid requesting text in the image. For example, for \'The Water Cycle\', a prompt could be \'Stylized illustration of the water cycle showing evaporation from a lake, cloud formation, precipitation as rain over mountains, and water flowing back in a river, bright and clear educational style, flat design\'.'),
+  animationConcept: z.string().describe('A brief explanation of the core concept the animation should visually represent using the generated image. This concept will also be used as informational text alongside the image.'),
+  suggestedKeywords: z.array(z.string()).describe('A list of 2-3 keywords that could inspire the animation style or elements (e.g., "slide-in", "reveal", "informational", "educational").'),
 });
 export type GenerateModuleContentIdeaOutput = z.infer<typeof GenerateModuleContentIdeaOutputSchema>;
 
@@ -36,11 +37,11 @@ Given the user's topic: {{{topic}}}
 
 Please generate the following:
 1.  A 'moduleTitle': A concise and captivating title for the module.
-2.  An 'imagePrompt': A detailed prompt for an image generation model. This image should be simple, symbolic, contain NO TEXT, and be suitable for a basic code-based animation. It should visually represent the core of the topic. For example, for "photosynthesis", a good prompt might be "A single green leaf absorbing stylized sunlight rays, minimalist icon".
-3.  An 'animationConcept': A short description of what a simple animation using this image should convey. For example, for the photosynthesis leaf, "Show sunlight rays moving towards and being absorbed by the leaf, then the leaf subtly glowing or pulsing."
-4.  'suggestedKeywords': A list of 2-3 keywords that could inspire the animation style (e.g., "show absorption", "gradual change", "cycle").
+2.  An 'imagePrompt': A descriptive prompt for an image generation model to create a **vibrant and visually engaging illustration** (not a simple icon) related to the module title. The image should be **colorful, clear, and suitable for an educational context**. For example, for 'The Water Cycle', a prompt could be 'Stylized illustration of the water cycle showing evaporation from a lake, cloud formation, precipitation as rain over mountains, and water flowing back in a river, bright and clear educational style, flat design'. Ensure the prompt does not request any text to be part of the image itself.
+3.  An 'animationConcept': A short (1-2 sentences) description of what a simple animation using this image should convey. This text will also be displayed alongside the image in the module. For example, for a module on photosynthesis, "This animation shows how a plant leaf absorbs sunlight and carbon dioxide to produce energy, releasing oxygen in the process."
+4.  'suggestedKeywords': A list of 2-3 keywords that could inspire the animation style (e.g., "slide-in", "informational", "educational", "diagram").
 
-Focus on clarity and simplicity for both the image and the animation concept.
+Focus on clarity and engagement for the image and the animation concept.
 `,
 });
 
@@ -58,3 +59,4 @@ const generateModuleContentIdeaFlow = ai.defineFlow(
     return output;
   }
 );
+
