@@ -17,7 +17,7 @@ const GenerateSpeechFromTextInputSchema = z.object({
 export type GenerateSpeechFromTextInput = z.infer<typeof GenerateSpeechFromTextInputSchema>;
 
 const GenerateSpeechFromTextOutputSchema = z.object({
-  audioDataUri: z.string().describe('The generated audio as a data URI. Expected format: \'data:audio/wav;base64,<encoded_data>\' or similar audio format.'),
+  audioDataUri: z.string().describe("The generated audio as a data URI. Common formats are 'data:audio/wav;base64,<encoded_data>' or 'data:audio/mpeg;base64,<encoded_data>'. May also be 'data:audio/l16;codec=pcm;rate=24000;base64,<encoded_data>', which has limited direct browser playback support."),
 });
 export type GenerateSpeechFromTextOutput = z.infer<typeof GenerateSpeechFromTextOutputSchema>;
 
@@ -64,7 +64,11 @@ const generateSpeechFromTextFlow = ai.defineFlow(
 
         // Determine the content type
         const detectedContentTypeHeader = response.headers.get('Content-Type');
-        const contentType = detectedContentTypeHeader || 'audio/wav'; // Default to wav if not provided
+        let contentType = detectedContentTypeHeader || 'audio/wav'; // Default to wav if not provided
+        
+        if (contentType.startsWith('audio/l16')) {
+            console.warn(`TTS Flow: Detected Content-Type as "${contentType}". This format (e.g., raw PCM L16) may have limited direct playback support in browsers. Consider checking browser compatibility for this MIME type if playback issues occur.`);
+        }
         console.log(`TTS Flow: Determined Content-Type: ${contentType} (from header: ${detectedContentTypeHeader || 'N/A'}, default: audio/wav if null)`);
         
         // Base64 encode the audio buffer
