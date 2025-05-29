@@ -1,9 +1,9 @@
 
 'use server';
 /**
- * @fileOverview A Genkit flow to generate HTML/CSS/JS animation code for an academic module.
+ * @fileOverview A Genkit flow to generate complex, interactive HTML/CSS/JS educational modules.
  *
- * - generateAnimationCode - Generates animation code using a provided image, concept, title, and keywords.
+ * - generateAnimationCode - Generates interactive module code using a provided image, concept, title, and keywords.
  * - GenerateAnimationCodeInput - Input type for the flow.
  * - GenerateAnimationCodeOutput - Output type for the flow.
  */
@@ -15,16 +15,16 @@ const GenerateAnimationCodeInputSchema = z.object({
   imageDataUri: z
     .string()
     .describe(
-      "The image to be animated, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+      "The main image for the module, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
-  animationConcept: z.string().describe('A description of the concept the animation should visually represent, which will also serve as informational text.'),
-  suggestedKeywords: z.array(z.string()).describe('Keywords to guide the animation style (e.g., "slide-in", "reveal", "educational").'),
+  animationConcept: z.string().describe('A description of the core educational concept the interactive module should explain or demonstrate. This will guide content generation for the tabs.'),
+  suggestedKeywords: z.array(z.string()).describe('Keywords to guide the interactive module style (e.g., "simulation", "game", "interactive diagram").'),
   moduleTitle: z.string().describe('The title of the module, for context and display.')
 });
 export type GenerateAnimationCodeInput = z.infer<typeof GenerateAnimationCodeInputSchema>;
 
 const GenerateAnimationCodeOutputSchema = z.object({
-  htmlContent: z.string().describe('The complete HTML content, including embedded CSS (in <style> tags) and JavaScript (in <script> tags), for the animation. The provided image must be embedded as a base64 data URI in an <img> tag.'),
+  htmlContent: z.string().describe('The complete, self-contained HTML content, including embedded CSS (in <style> tags) and JavaScript (in <script> tags), for the interactive educational module. The provided image must be embedded as a base64 data URI in an <img> tag using the specified placeholder.'),
 });
 export type GenerateAnimationCodeOutput = z.infer<typeof GenerateAnimationCodeOutputSchema>;
 
@@ -43,146 +43,64 @@ const prompt = ai.definePrompt({
   name: 'generateAnimationCodePrompt',
   input: {schema: GenerateAnimationCodeInputSchema},
   output: {schema: z.object({ htmlContent: z.string() }) }, // LLM outputs HTML with placeholder
-  prompt: `You are an expert web developer creating visually appealing, animated educational content.
-Your task is to generate a single, self-contained HTML file for an animated module slide.
+  prompt: `You are an expert in educational technology and instructional design. Your primary task is to build a highly interactive, single-page educational module using HTML, CSS, and JavaScript. The module should be self-contained in a single HTML file.
 
+**Module Context:**
 Module Title: {{{moduleTitle}}}
-Informational Text (derived from animationConcept): {{{animationConcept}}}
-Suggested Keywords for Animation Style: {{#each suggestedKeywords}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
-Image to use (placeholder, will be inserted later): ${IMAGE_PLACEHOLDER_SRC}
+Core Educational Concept: {{{animationConcept}}}
+Suggested Keywords for Style/Interaction: {{#each suggestedKeywords}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
 
-**Requirements for the HTML Output:**
+**Key Image Resource:**
+You will be provided with a main image. In the HTML you generate, you MUST use the exact placeholder \`src="${IMAGE_PLACEHOLDER_SRC}"\` for this image's \`<img>\` tag. This placeholder will be automatically replaced with the actual image data URI. This image should be used meaningfully, perhaps in the introduction, the Visual Demo tab, or as a general branding element.
 
-1.  **Layout:**
-    *   Create a two-column layout for the main content area. One column (e.g., 40-50% width) for the image, the other for informational text.
-    *   The informational text column should display:
-        *   The \`{{{moduleTitle}}}\` as a prominent heading (e.g., \`<h2>\`).
-        *   The \`{{{animationConcept}}}\` as paragraph text (e.g., \`<p>\`).
-    *   Ensure the layout is reasonably responsive. The columns should stack on smaller screens.
+**Core Requirements for the HTML Output:**
 
-2.  **Animation:**
-    *   Implement a "slide-in" or "fade-in with upward movement" animation for the main content container or its columns when the page loads.
-    *   The animation should be smooth and engaging. Prefer CSS animations/transitions.
+1.  **Single HTML File Structure:**
+    *   All CSS must be within \`<style>\` tags in the \`<head>\`.
+    *   All JavaScript must be within \`<script>\` tags, preferably at the end of the \`<body>\`.
+    *   The HTML should be well-structured with semantic tags (e.g., \`<header>\`, \`<nav>\`, \`<main>\`, \`<article>\`, \`<section>\`).
 
-3.  **Styling (CSS within \`<style>\` tags):**
-    *   Use a modern and clean aesthetic.
-    *   Apply a pleasant color scheme. Example: Page background: light gray (\`#f0f4f8\`), content container background: white (\`#ffffff\`).
-    *   Style the text:
-        *   Heading (\`{{{moduleTitle}}}\`): Darker color (e.g., \`#333333\`), appropriate font size (e.g., 24px).
-        *   Paragraph (\`{{{animationConcept}}}\`): Slightly lighter color (e.g., \`#555555\`), good font size (e.g., 16px), and line-height (e.g., 1.6).
-    *   Use a common sans-serif font like Arial, Helvetica, or system-ui.
-    *   The image (which will be \`src="${IMAGE_PLACEHOLDER_SRC}"\`) should be styled to fit its column (e.g., \`max-width: 100%; height: auto;\`) and have a subtle border-radius (e.g., \`border-radius: 8px;\`).
-    *   The main content container should have some padding, a border-radius, and a subtle box-shadow.
+2.  **Tabbed Layout (Mandatory):**
+    *   Implement a clear tabbed navigation system.
+    *   There must be exactly FIVE tabs with the following titles and purposes:
+        *   **"Introduction"**: A brief overview of the module topic (\`{{{moduleTitle}}}\`) and what the user will learn. Could feature the main image.
+        *   **"📚 Theory"**: Explanation of core concepts related to \`{{{animationConcept}}}\`. Use clear headings, paragraphs, and lists.
+        *   **"🃏 Flashcards"**: Interactive flashcards for at least 8 key terms/definitions related to the topic.
+            *   Functionality: Cards should flip on click/tap. Implement a "Shuffle" button.
+            *   Animation: Smooth flip animations for the cards.
+        *   **"📐 Visual Demo"**: An interactive simulation, diagram, or activity to visually explain a key aspect of \`{{{animationConcept}}}\`.
+            *   Interactivity: If applicable, use elements like sliders, buttons that trigger changes, or an interactive diagram. This is where the main provided image (\`src="${IMAGE_PLACEHOLDER_SRC}"\`) could be central.
+            *   If charting is essential and feasible, use a simple approach (e.g., CSS-based bar chart or very basic SVG). If using a library, it MUST be from CDNJS (e.g., a very lightweight chart library if absolutely needed, but prefer native solutions).
+        *   **"📝 Quiz"**: A short multiple-choice quiz (4-5 questions) to test understanding.
+            *   Functionality: Show feedback (correct/incorrect) after each question or at the end. Display a score.
+        *   **"💡 Summary"**: Recap of key learning points.
 
-4.  **Structure:**
-    *   The HTML must be self-contained (CSS in \`<style>\`, JS in \`<script>\` if absolutely necessary for *simple* animation control, but prioritize CSS).
-    *   **Crucially, the \`<img>\` tag's \`src\` attribute for the main module image MUST be exactly "${IMAGE_PLACEHOLDER_SRC}".**
+3.  **Design and UI/UX:**
+    *   **Modern Aesthetic**: Aim for a clean, modern, and professional look. Consider using subtle gradients, perhaps a touch of glassmorphism on elements like cards or tab containers if it enhances clarity without clutter.
+    *   **Color Palette**: Use a colorful, topic-appropriate, and accessible color scheme. Ensure good contrast.
+    *   **Typography**: Use clear, legible sans-serif fonts (e.g., system-ui, Arial, Helvetica).
+    *   **Micro-animations**: Implement subtle hover effects, smooth transitions for tab changes, and other small animations to enhance user experience.
+    *   **Responsiveness**: The entire module MUST be mobile-friendly and adapt gracefully to different screen sizes. Use flexbox/grid for layout.
+    *   **Branding**: Display the \`{{{moduleTitle}}}\` prominently, perhaps in a header.
 
-5.  **Example Structure (Conceptual - adapt and improve):**
-    \`\`\`html
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Module: {{{moduleTitle}}}</title>
-        <style>
-            body {
-                margin: 0;
-                padding: 20px;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                min-height: 100vh;
-                background-color: #f0f4f8; /* Light grayish-blue background */
-                font-family: Arial, Helvetica, sans-serif;
-            }
-            .module-container {
-                display: flex;
-                flex-direction: row; /* Columns side-by-side */
-                width: 90%;
-                max-width: 900px;
-                margin: auto;
-                background-color: #ffffff; /* White background for content */
-                border-radius: 12px;
-                box-shadow: 0 8px 16px rgba(0,0,0,0.1);
-                overflow: hidden; /* Important for slide-in if children are animated */
-                opacity: 0;
-                transform: translateY(30px);
-                animation: slideUpFadeIn 0.8s ease-out forwards;
-            }
-            @keyframes slideUpFadeIn {
-                to {
-                    opacity: 1;
-                    transform: translateY(0);
-                }
-            }
-            .image-column {
-                flex: 1 1 45%; /* Flex basis 45% */
-                padding: 25px;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-            }
-            .image-column img {
-                max-width: 100%;
-                height: auto;
-                border-radius: 8px;
-                object-fit: contain;
-            }
-            .text-column {
-                flex: 1 1 55%; /* Flex basis 55% */
-                padding: 25px;
-                color: #333;
-            }
-            .text-column h2 {
-                font-size: 26px;
-                color: #2c3e50; /* Darker blue-gray for title */
-                margin-top: 0;
-                margin-bottom: 15px;
-            }
-            .text-column p {
-                font-size: 16px;
-                line-height: 1.7;
-                color: #555555; /* Standard text color */
-                margin-bottom: 0;
-            }
-            /* Responsive: Stack columns on smaller screens */
-            @media (max-width: 768px) {
-                .module-container {
-                    flex-direction: column;
-                    width: 95%;
-                }
-                .image-column, .text-column {
-                    flex-basis: auto; /* Reset flex-basis */
-                    padding: 20px;
-                }
-                .text-column h2 { font-size: 22px; }
-                .text-column p { font-size: 15px; }
-            }
-        </style>
-    </head>
-    <body>
-        <div class="module-container">
-            <div class="image-column">
-                <img src="${IMAGE_PLACEHOLDER_SRC}" alt="Visual for {{{moduleTitle}}}" />
-            </div>
-            <div class="text-column">
-                <h2>{{{moduleTitle}}}</h2>
-                <p>{{{animationConcept}}}</p>
-            </div>
-        </div>
-        <script>
-            // Minimal JS, if any. CSS animations preferred.
-        </script>
-    </body>
-    </html>
-    \`\`\`
+4.  **Technical Requirements:**
+    *   **JavaScript for Interactivity**: Implement all dynamic behaviors (tabs, flashcards, quiz, demo interactions) using vanilla JavaScript.
+    *   **No localStorage/sessionStorage**: All state (e.g., quiz scores, flashcard order) must be managed within JavaScript variables/objects for the current session.
+    *   **Performance**: Ensure smooth animations and fast load times. Optimize CSS and JS.
+    *   **Error Handling**: While complex error handling isn't expected, ensure JavaScript interactions are robust (e.g., check for element existence before manipulating).
+    *   **Code Comments**: Add brief comments in HTML, CSS, and JS to explain complex parts or sections.
 
-Provide ONLY the HTML content as a string in the 'htmlContent' field.
-Ensure the image \`src\` in your generated HTML is exactly "${IMAGE_PLACEHOLDER_SRC}".
-Focus on a clean, modern, and educational "page slide" presentation with the image and text.
-The \`{{{animationConcept}}}\` should be presented clearly as informational text.
+**Output Format:**
+Provide ONLY the complete HTML content as a string in the 'htmlContent' field.
+
+**Example of how to use the image placeholder (adapt as needed within your structure):**
+\`<img src="${IMAGE_PLACEHOLDER_SRC}" alt="Visual representation for {{{moduleTitle}}}" style="max-width: 100%; height: auto; border-radius: 8px;" />\`
+
+**Content Generation Guidance:**
+*   Use the \`{{{moduleTitle}}}\` and \`{{{animationConcept}}}\` to generate plausible and relevant educational content for each tab.
+*   The \`{{{suggestedKeywords}}}\` can inspire the type of interactivity in the "Visual Demo" tab.
+
+Make sure the output is a single, complete, and functional HTML file. Prioritize creating a working, interactive, and well-designed educational module based on all the above requirements.
 `,
 });
 
@@ -201,8 +119,9 @@ const generateAnimationCodeFlow = ai.defineFlow(
 
     // Replace the placeholder with the actual image data URI
     // Using a regex with global flag in case the placeholder somehow appears multiple times.
-    const placeholderRegex = new RegExp(escapeRegExp(`"${IMAGE_PLACEHOLDER_SRC}"`), 'g');
-    const finalHtmlContent = output.htmlContent.replace(placeholderRegex, `"${input.imageDataUri}"`);
+    const placeholderRegex = new RegExp(escapeRegExp(IMAGE_PLACEHOLDER_SRC), 'g');
+    // Ensure the replacement is properly quoted if the placeholder was expected within quotes
+    const finalHtmlContent = output.htmlContent.replace(placeholderRegex, input.imageDataUri);
     
     return { htmlContent: finalHtmlContent };
   }
