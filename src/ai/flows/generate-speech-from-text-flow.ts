@@ -17,7 +17,7 @@ const GenerateSpeechFromTextInputSchema = z.object({
 export type GenerateSpeechFromTextInput = z.infer<typeof GenerateSpeechFromTextInputSchema>;
 
 const GenerateSpeechFromTextOutputSchema = z.object({
-  audioDataUri: z.string().describe("The generated audio as a data URI. Common formats are 'data:audio/wav;base64,<encoded_data>' or 'data:audio/mpeg;base64,<encoded_data>'. May also be 'data:audio/l16;codec=pcm;rate=24000;base64,<encoded_data>', which has limited direct browser playback support."),
+  audioDataUri: z.string().describe("The generated audio as a data URI. Aiming for web-friendly formats like 'data:audio/mpeg;base64,<encoded_data>' (MP3) or 'data:audio/wav;base64,<encoded_data>'. If 'data:audio/l16;...' is returned, browser playback issues are likely."),
 });
 export type GenerateSpeechFromTextOutput = z.infer<typeof GenerateSpeechFromTextOutputSchema>;
 
@@ -32,52 +32,52 @@ const generateSpeechFromTextFlow = ai.defineFlow(
     outputSchema: GenerateSpeechFromTextOutputSchema,
   },
   async (input) => {
-    // Using the newer TTS model and configuration based on the provided example
     const ttsModel = 'googleai/gemini-2.5-flash-preview-tts'; 
+
+    console.log(`TTS Flow: Attempting to generate speech for text: "${input.textToSpeak.substring(0, 50)}..." with model ${ttsModel}`);
 
     const {media} = await ai.generate({
       model: ttsModel,
-      prompt: [{text: input.textToSpeak}], // Adapted prompt structure
+      prompt: [{text: input.textToSpeak}],
       config: {
             responseModalities: ['AUDIO'],
-            speechConfig: { // Speech-specific configuration
+            speechConfig: { 
                voiceConfig: {
-                  // Example voice, can be parameterized if needed
                   prebuiltVoiceConfig: { voiceName: 'Kore' }, 
                },
+               audioConfig: { // Requesting MP3 audio encoding
+                  audioEncoding: 'MP3',
+               }
             },
       },
     });
     
     if (media && media.url) {
-      console.log(`TTS Flow: Received media.url: ${media.url}`);
+      console.log(`TTS Flow: Received media.url from AI: ${media.url}`);
       try {
-        // Fetch the audio content from the URL
         const response = await fetch(media.url);
         if (!response.ok) {
           throw new Error(`Failed to fetch audio from ${media.url}: ${response.statusText}`);
         }
 
-        // Get the audio content as an ArrayBuffer
         const arrayBuffer = await response.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer); // Convert ArrayBuffer to Node.js Buffer
+        const buffer = Buffer.from(arrayBuffer); 
 
-        // Determine the content type
         const detectedContentTypeHeader = response.headers.get('Content-Type');
-        let contentType = detectedContentTypeHeader || 'audio/wav'; // Default to wav if not provided
+        // If MP3 is successfully generated, contentType should be 'audio/mpeg'
+        let contentType = detectedContentTypeHeader || 'audio/mpeg'; // Default to mpeg if trying for MP3 and header is missing
         
         if (contentType.startsWith('audio/l16')) {
-            console.warn(`TTS Flow: Detected Content-Type as "${contentType}". This format (e.g., raw PCM L16) may have limited direct playback support in browsers. Consider checking browser compatibility for this MIME type if playback issues occur.`);
+            console.warn(`TTS Flow: Detected Content-Type as "${contentType}". This format (e.g., raw PCM L16) may have limited direct playback support in browsers despite requesting MP3. Consider checking browser compatibility if playback issues occur.`);
+        } else if (contentType === 'audio/mpeg') {
+            console.log(`TTS Flow: Successfully received 'audio/mpeg' (MP3) content type as requested.`);
+        } else {
+            console.log(`TTS Flow: Received Content-Type: "${contentType}" (from header: ${detectedContentTypeHeader || 'N/A'}).`);
         }
-        console.log(`TTS Flow: Determined Content-Type: ${contentType} (from header: ${detectedContentTypeHeader || 'N/A'}, default: audio/wav if null)`);
         
-        // Base64 encode the audio buffer
         const base64Audio = buffer.toString('base64');
-
-        // Construct the data URI
         const audioDataUri = `data:${contentType};base64,${base64Audio}`;
         console.log(`TTS Flow: Constructed audioDataUri (first 100 chars): ${audioDataUri.substring(0,100)}...`);
-
 
         return { audioDataUri };
 
