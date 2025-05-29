@@ -50,7 +50,33 @@ const generateSpeechFromTextFlow = ai.defineFlow(
     });
     
     if (media && media.url) {
-      return { audioDataUri: media.url };
+      try {
+        // Fetch the audio content from the URL
+        const response = await fetch(media.url);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch audio from ${media.url}: ${response.statusText}`);
+        }
+
+        // Get the audio content as an ArrayBuffer
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer); // Convert ArrayBuffer to Node.js Buffer
+
+        // Determine the content type
+        const contentType = response.headers.get('Content-Type') || 'audio/wav'; // Default to wav if not provided
+
+        // Base64 encode the audio buffer
+        const base64Audio = buffer.toString('base64');
+
+        // Construct the data URI
+        const audioDataUri = `data:${contentType};base64,${base64Audio}`;
+
+        return { audioDataUri };
+
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Unknown error during audio processing.";
+        console.error('Error processing audio from URL:', error);
+        throw new Error(`Text-to-speech generation failed: Could not retrieve or encode audio data. Details: ${errorMessage}`);
+      }
     } else {
       console.error('TTS generation response did not contain media.url:', {media});
       throw new Error('Text-to-speech generation failed. The AI model did not return valid audio data. Check model availability and plugin configuration.');
