@@ -11,16 +11,17 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/loading-spinner";
 import { Progress } from "@/components/ui/progress";
+import { generateModulePlan, type GenerateModulePlanOutput, type PlannedModule } from "@/ai/flows/generate-module-plan-flow";
 import { generateModuleContentIdea, type GenerateModuleContentIdeaOutput } from "@/ai/flows/generate-module-content-idea-flow";
 import { generateImage, type GenerateImageOutput } from "@/ai/flows/generate-image-from-prompt";
 import { generateAnimationCode, type GenerateAnimationCodeOutput } from "@/ai/flows/generate-animation-code-flow";
 import { generateAudioScript, type GenerateAudioScriptInput, type GenerateAudioScriptOutput } from "@/ai/flows/generate-audio-script-flow";
 import { generateSpeechFromText, type GenerateSpeechFromTextInput, type GenerateSpeechFromTextOutput } from "@/ai/flows/generate-speech-from-text-flow";
 
-import { Code, Lightbulb, Image as ImageIconLucide, Film, CheckCircle, BookOpenText, Mic, FileAudio, ChevronRight, XCircle } from "lucide-react";
+import { Code, Lightbulb, Image as ImageIconLucide, Film, CheckCircle, BookOpenText, Mic, FileAudio, ChevronRight, XCircle, ListTree } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const STAGES = [
+const BASE_STAGES = [
   { id: 'idea', label: 'Module Idea & Concept', icon: Lightbulb, processingText: 'ideas' },
   { id: 'image', label: 'Image Generation', icon: ImageIconLucide, processingText: 'image' },
   { id: 'code', label: 'Module Code', icon: Code, processingText: 'animation' },
@@ -28,8 +29,17 @@ const STAGES = [
   { id: 'synthesis', label: 'Audio Synthesis', icon: FileAudio, processingText: 'Synthesizing audio' },
 ];
 
+const ALL_STAGES_WITH_PLAN = [
+  { id: 'plan', label: 'Module Plan Generation', icon: ListTree, processingText: 'plan' },
+  ...BASE_STAGES,
+];
+
+
 export function AcademicModuleCreator() {
   const [topic, setTopic] = useState<string>("");
+  const [modulePlan, setModulePlan] = useState<GenerateModulePlanOutput | null>(null);
+  const [currentSubModule, setCurrentSubModule] = useState<PlannedModule | null>(null);
+
   const [moduleIdea, setModuleIdea] = useState<GenerateModuleContentIdeaOutput | null>(null);
   const [generatedImage, setGeneratedImage] = useState<GenerateImageOutput | null>(null);
   const [animationCode, setAnimationCode] = useState<GenerateAnimationCodeOutput | null>(null);
@@ -41,6 +51,7 @@ export function AcademicModuleCreator() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
+  const [planGenerated, setPlanGenerated] = useState(false);
   const [ideaGenerated, setIdeaGenerated] = useState(false);
   const [imageGeneratedState, setImageGeneratedState] = useState(false);
   const [codeGenerated, setCodeGenerated] = useState(false);
@@ -84,7 +95,7 @@ export function AcademicModuleCreator() {
           case mediaError.MEDIA_ERR_ABORTED: errorMessage = "Audio playback was aborted."; break;
           case mediaError.MEDIA_ERR_NETWORK: errorMessage = "A network error caused audio download to fail."; break;
           case mediaError.MEDIA_ERR_DECODE: errorMessage = "Audio playback failed: The audio data could not be decoded (corrupted or unparsable)."; break;
-          case mediaError.MEDIA_ERR_SRC_NOT_SUPPORTED: errorMessage = "Audio playback failed: The audio format (e.g., codec or container) provided by the AI is not supported by your browser or the source URI is invalid. Please check the console for the full audio data URI and MediaError details for more information on the exact format received."; break;
+          case mediaError.MEDIA_ERR_SRC_NOT_SUPPORTED: errorMessage = "Audio playback failed: The audio format (e.g., codec or container) provided by the AI is not supported by your browser or the source URI is invalid. Please check the console for the full audio data URI and MediaError details for more information on the exact format received (e.g., 'audio/l16' for raw PCM data)."; break;
           default: errorMessage = `Audio playback failed with an unknown error code: ${mediaError.code}. Refer to MediaError details in console.`;
         }
       } else {
@@ -108,7 +119,7 @@ export function AcademicModuleCreator() {
           console.log("Audio play() promise rejected:", err);
           if (err.name === 'NotAllowedError') {
             toast({ title: "Audio Autoplay Blocked", description: "Audio autoplay was blocked by the browser. Please use the provided controls to play the narration.", variant: "default" });
-          } else if (err.name === 'NotSupportedError' && !audioElement.error) { // NotSupportedError is a DOMException, not a MediaError
+          } else if (err.name === 'NotSupportedError' && !audioElement.error) { 
             toast({ title: "Audio Playback Error", description: "The browser reported it cannot play this audio format, or the audio source is invalid/empty. Check console for details.", variant: "destructive" });
           } else if (err.name !== 'NotSupportedError' && err.name !== 'AbortError' && !audioElement.error) { 
              toast({ title: "Audio Playback Issue", description: `Could not play audio: ${err.message || 'Unknown error'}.`, variant: "destructive" });
@@ -129,11 +140,14 @@ export function AcademicModuleCreator() {
   }, [isClient, audioDataUri, toast]);
 
   const resetState = () => {
+    setModulePlan(null);
+    setCurrentSubModule(null);
     setModuleIdea(null);
     setGeneratedImage(null);
     setAnimationCode(null);
     setAudioScript(null);
     setAudioDataUri(null);
+    setPlanGenerated(false);
     setIdeaGenerated(false);
     setImageGeneratedState(false);
     setCodeGenerated(false);
@@ -157,56 +171,84 @@ export function AcademicModuleCreator() {
     }
     setIsLoading(true);
     resetState();
+    let currentModuleDescription = "";
 
     try {
-      setCurrentStepText("Generating module ideas & image prompt...");
+      // Stage 1: Generate Module Plan
+      setCurrentStepText("Generating module plan...");
       setFailedStep(null);
-      toast({ title: "Step 1: Generating Ideas", description: "AI is brainstorming content and image ideas..." });
-      const ideaOutput = await generateModuleContentIdea({ topic });
+      toast({ title: "Step 1: Generating Plan", description: "AI is creating a learning plan..." });
+      const planOutput = await generateModulePlan({ topic });
+      setModulePlan(planOutput);
+      setPlanGenerated(true);
+      toast({ title: "Plan Generated!", description: `Created a plan with ${planOutput.plannedModules.length} modules.` });
+
+      if (!planOutput.plannedModules || planOutput.plannedModules.length === 0) {
+        throw new Error("Module plan is empty.");
+      }
+      
+      // For now, we'll generate only the first module of the plan
+      const firstModule = planOutput.plannedModules[0];
+      setCurrentSubModule(firstModule);
+      currentModuleDescription = `Module 1 of ${planOutput.plannedModules.length}: "${firstModule.title}"`;
+
+      // Stage 2: Generate Module Content Idea for the first module
+      setCurrentStepText(`Generating ideas for ${currentModuleDescription}...`);
+      toast({ title: `${currentModuleDescription}: Generating Ideas`, description: "AI is brainstorming content..." });
+      // Use the concept of the sub-module as the 'topic' for idea generation
+      const ideaOutput = await generateModuleContentIdea({ topic: firstModule.concept }); 
       setModuleIdea(ideaOutput);
       setIdeaGenerated(true);
-      toast({ title: "Ideas Generated!", description: "Module title and image prompt created." });
+      toast({ title: `${currentModuleDescription}: Ideas Generated!`, description: "Module title and image prompt created." });
 
-      setCurrentStepText("Generating image...");
+      // Stage 3: Generate Image
+      setCurrentStepText(`Generating image for ${currentModuleDescription}...`);
       if (!ideaOutput.imagePrompt) throw new Error("Image prompt was not generated.");
       const imageOutput = await generateImage({ prompt: ideaOutput.imagePrompt });
       if (!imageOutput.imageDataUri) throw new Error("Image data URI is missing.");
       setGeneratedImage(imageOutput);
       setImageGeneratedState(true);
-      toast({ title: "Image Generated!", description: "Visual created successfully." });
+      toast({ title: `${currentModuleDescription}: Image Generated!`, description: "Visual created successfully." });
 
-      setCurrentStepText("Generating animation code...");
+      // Stage 4: Generate Animation Code
+      setCurrentStepText(`Generating animation code for ${currentModuleDescription}...`);
       const codeOutput = await generateAnimationCode({
         imageDataUri: imageOutput.imageDataUri,
-        animationConcept: ideaOutput.animationConcept,
+        animationConcept: ideaOutput.animationConcept, // Use concept from ideaOutput
         suggestedKeywords: ideaOutput.suggestedKeywords,
-        moduleTitle: ideaOutput.moduleTitle,
+        moduleTitle: ideaOutput.moduleTitle, // Use title from ideaOutput
       });
       if (!codeOutput.htmlContent) throw new Error("Animation HTML content is missing.");
       setAnimationCode(codeOutput);
       setCodeGenerated(true);
-      toast({ title: "Animation Code Ready!", description: "Module content created." });
+      toast({ title: `${currentModuleDescription}: Animation Code Ready!`, description: "Module content created." });
 
-      setCurrentStepText("Generating audio script...");
-      const scriptInput: GenerateAudioScriptInput = { moduleTitle: ideaOutput.moduleTitle, animationConcept: ideaOutput.animationConcept };
+      // Stage 5: Generate Audio Script
+      setCurrentStepText(`Generating audio script for ${currentModuleDescription}...`);
+      const scriptInput: GenerateAudioScriptInput = { 
+          moduleTitle: ideaOutput.moduleTitle, // Use title from ideaOutput for script
+          animationConcept: ideaOutput.animationConcept // Use concept from ideaOutput
+      };
       const scriptOutput = await generateAudioScript(scriptInput);
       if (!scriptOutput.audioScript) throw new Error("Audio script was not generated.");
       setAudioScript(scriptOutput);
       setAudioScriptGenerated(true);
-      toast({ title: "Audio Script Generated!", description: "Narration script ready." });
+      toast({ title: `${currentModuleDescription}: Audio Script Generated!`, description: "Narration script ready." });
       
-      setCurrentStepText("Synthesizing audio...");
+      // Stage 6: Synthesize Audio
+      setCurrentStepText(`Synthesizing audio for ${currentModuleDescription}...`);
       const speechInput: GenerateSpeechFromTextInput = { textToSpeak: scriptOutput.audioScript };
       const speechOutput = await generateSpeechFromText(speechInput);
       if (!speechOutput.audioDataUri) throw new Error("Audio data URI is missing from TTS flow output.");
       setAudioDataUri(speechOutput.audioDataUri); 
       setAudioSynthesized(true);
-      toast({ title: "Audio Ready!", description: "Voiceover generated successfully." });
-      setCurrentStepText("All steps completed!");
+      toast({ title: `${currentModuleDescription}: Audio Ready!`, description: "Voiceover generated successfully." });
+      
+      setCurrentStepText("First module completed!");
 
     } catch (err) {
-      const currentProcessingStepId = STAGES.find(s => currentStepText.toLowerCase().includes(s.processingText.toLowerCase()))?.id;
-      setFailedStep(currentProcessingStepId || 'unknown');
+      const currentStageId = ALL_STAGES_WITH_PLAN.find(s => currentStepText.toLowerCase().includes(s.processingText.toLowerCase()))?.id;
+      setFailedStep(currentStageId || 'unknown');
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
       setError(`Failed during '${currentStepText || "module creation"}': ${errorMessage}`);
       toast({ title: "Error Creating Module", description: errorMessage, variant: "destructive" });
@@ -219,39 +261,44 @@ export function AcademicModuleCreator() {
   const isPreviewReady = isClient && animationCode?.htmlContent && audioDataUri;
   
   let completedStepCount = 0;
+  if (planGenerated) completedStepCount++;
   if (ideaGenerated) completedStepCount++;
   if (imageGeneratedState) completedStepCount++;
   if (codeGenerated) completedStepCount++;
   if (audioScriptGenerated) completedStepCount++;
   if (audioSynthesized) completedStepCount++;
-  const progressPercentage = (completedStepCount / STAGES.length) * 100;
+  const progressPercentage = (completedStepCount / ALL_STAGES_WITH_PLAN.length) * 100;
 
   const getStageStatus = (stageId: string) => {
     if (failedStep === stageId) return 'failed';
+
+    if (stageId === 'plan' && planGenerated) return 'completed';
     if (stageId === 'idea' && ideaGenerated) return 'completed';
     if (stageId === 'image' && imageGeneratedState) return 'completed';
     if (stageId === 'code' && codeGenerated) return 'completed';
     if (stageId === 'script' && audioScriptGenerated) return 'completed';
     if (stageId === 'synthesis' && audioSynthesized) return 'completed';
     
-    const currentProcessingStage = STAGES.find(s => currentStepText.toLowerCase().includes(s.processingText.toLowerCase()));
+    const currentProcessingStage = ALL_STAGES_WITH_PLAN.find(s => currentStepText.toLowerCase().includes(s.processingText.toLowerCase()));
     if (isLoading && currentProcessingStage?.id === stageId && !failedStep) return 'processing';
     
     if (failedStep) {
-        const failedStageIndex = STAGES.findIndex(s => s.id === failedStep);
-        const currentStageIndex = STAGES.findIndex(s => s.id === stageId);
-        if (currentStageIndex > failedStageIndex) return 'pending';
+        const failedStageIndex = ALL_STAGES_WITH_PLAN.findIndex(s => s.id === failedStep);
+        const currentStageIndex = ALL_STAGES_WITH_PLAN.findIndex(s => s.id === stageId);
+        if (currentStageIndex > failedStageIndex) return 'pending'; // Mark subsequent stages as pending
     }
     
     if (isLoading && !failedStep) {
-      const currentStageIndex = STAGES.findIndex(s => s.id === stageId);
-      const processingStageIndex = currentProcessingStage ? STAGES.findIndex(s => s.id === currentProcessingStage.id) : -1;
+      const currentStageIndex = ALL_STAGES_WITH_PLAN.findIndex(s => s.id === stageId);
+      const processingStageIndex = currentProcessingStage ? ALL_STAGES_WITH_PLAN.findIndex(s => s.id === currentProcessingStage.id) : -1;
       if (currentStageIndex > processingStageIndex) return 'pending';
     }
 
-    if (!isLoading && completedStepCount < STAGES.length && STAGES.findIndex(s => s.id === stageId) >= completedStepCount) return 'pending';
+    if (!isLoading && completedStepCount < ALL_STAGES_WITH_PLAN.length && ALL_STAGES_WITH_PLAN.findIndex(s => s.id === stageId) >= completedStepCount) return 'pending';
+    if (!isLoading && completedStepCount === 0 && stageId !== 'plan') return 'pending';
 
-    return 'pending';
+
+    return 'pending'; // Default to pending if no other status matches
   };
 
 
@@ -261,11 +308,10 @@ export function AcademicModuleCreator() {
       <Card className="md:w-1/4 lg:w-1/5 flex flex-col p-4 sm:p-6 shadow-lg h-fit md:max-h-[calc(100vh-120px)] md:overflow-y-auto">
         {(isLoading || completedStepCount > 0 || error) && (
           <div className="mb-6">
-            {/* currentStepText display removed from here */}
             <Progress value={progressPercentage} className="w-full h-2 mb-4" />
             
             <div className="space-y-2.5">
-              {STAGES.map((stage) => {
+              {ALL_STAGES_WITH_PLAN.map((stage) => {
                 const status = getStageStatus(stage.id);
                 const IconComponent = 
                   status === 'completed' ? CheckCircle :
@@ -285,11 +331,28 @@ export function AcademicModuleCreator() {
                       <span className={cn("text-xs sm:text-sm", status === 'completed' && "font-medium", status==='failed' && "text-destructive font-medium")}>
                         {stage.label}
                       </span>
+                      {stage.id === 'plan' && modulePlan && (status === 'completed' || (status === 'failed' && planGenerated)) && (
+                        <details className="mt-1 group text-xs">
+                          <summary className="text-muted-foreground hover:text-accent list-none py-0.5 flex items-center cursor-pointer">
+                            <ChevronRight className="h-3 w-3 mr-1 group-open:rotate-90 transition-transform shrink-0" />
+                            <span>View Plan ({modulePlan.plannedModules.length} modules)</span>
+                          </summary>
+                          <Card className="p-2 bg-muted/30 space-y-1 border-l-2 border-accent mt-1">
+                            <p><strong>Overall Topic:</strong> {modulePlan.overallTopic}</p>
+                            {modulePlan.plannedModules.map((mod, idx) => (
+                                <div key={idx} className="p-1 border-b last:border-b-0">
+                                    <p className="font-semibold">Module {idx + 1}: {mod.title}</p>
+                                    <p className="text-gray-700 text-xs">{mod.concept}</p>
+                                </div>
+                            ))}
+                          </Card>
+                        </details>
+                      )}
                       {stage.id === 'idea' && moduleIdea && (status === 'completed' || (status === 'failed' && ideaGenerated)) && (
                         <details className="mt-1 group text-xs">
                           <summary className="text-muted-foreground hover:text-accent list-none py-0.5 flex items-center cursor-pointer">
                             <ChevronRight className="h-3 w-3 mr-1 group-open:rotate-90 transition-transform shrink-0" />
-                            <span>View Details</span>
+                            <span>View Module Idea Details</span>
                           </summary>
                           <Card className="p-2 bg-muted/30 space-y-1 border-l-2 border-accent mt-1">
                             <p><strong>Title:</strong> {moduleIdea.moduleTitle}</p>
@@ -352,7 +415,7 @@ export function AcademicModuleCreator() {
             {isLoading ? (
               <> <LoadingSpinner className="mr-2 h-4 sm:h-5 w-4 sm:w-5" /> Generating... </>
             ) : (
-              "✨ Generate Full Module"
+              "✨ Create Learning Plan & First Module"
             )}
           </Button>
           {error && !isLoading && ( 
@@ -376,7 +439,7 @@ export function AcademicModuleCreator() {
                 <div className="flex items-center justify-between mb-1 sm:mb-1.5 shrink-0 px-1 pt-1">
                     <h3 className="text-base sm:text-lg font-semibold flex items-center">
                     <Film className="mr-2 h-5 w-5 sm:h-6 sm:w-6 text-accent"/>
-                    Generated Module Preview
+                     {currentSubModule ? `${currentSubModule.title} Preview` : "Generated Module Preview"}
                     </h3>
                      <audio 
                         key={audioDataUri} 
@@ -390,7 +453,7 @@ export function AcademicModuleCreator() {
                 <div className="flex-grow w-full overflow-hidden rounded-md"> 
                   <iframe
                     srcDoc={animationCode!.htmlContent} 
-                    title="Generated Module Preview"
+                    title={currentSubModule ? currentSubModule.title : "Generated Module Preview"}
                     className="w-full h-full border-0"
                     sandbox="allow-scripts allow-same-origin" 
                   />
@@ -413,7 +476,7 @@ export function AcademicModuleCreator() {
             <div className="flex flex-col items-center justify-center h-full border-2 border-dashed rounded-lg p-6 sm:p-12 text-center">
               <BookOpenText className="h-12 w-12 sm:h-16 sm:w-16 mb-3 sm:mb-4 text-primary" />
               <p className="text-base sm:text-xl font-semibold">Module Preview Area</p>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1">Enter a topic and click "Generate Full Module". The interactive module and audio will appear here once all generation steps are complete.</p>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">Enter a topic and click the button. The learning plan and first module will be generated, and the preview will appear here.</p>
             </div>
           );
         })()}
