@@ -16,7 +16,7 @@ import { generateAnimationCode, type GenerateAnimationCodeOutput } from "@/ai/fl
 import { generateAudioScript, type GenerateAudioScriptInput, type GenerateAudioScriptOutput } from "@/ai/flows/generate-audio-script-flow";
 import { generateSpeechFromText, type GenerateSpeechFromTextInput, type GenerateSpeechFromTextOutput } from "@/ai/flows/generate-speech-from-text-flow";
 
-import { Code, Lightbulb, Image as ImageIconLucide, Film, CheckCircle, BookOpenText, Mic, FileAudio } from "lucide-react"; // Renamed ImageIcon to ImageIconLucide
+import { Code, Lightbulb, Image as ImageIconLucide, Film, CheckCircle, BookOpenText, Mic, FileAudio } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function AcademicModuleCreator() {
@@ -47,54 +47,57 @@ export function AcademicModuleCreator() {
 
   useEffect(() => {
     const audioElement = audioRef.current;
-    if (!isClient || !audioElement) {
-      return;
+
+    // audioElement will be null if the <audio> tag isn't rendered (due to !isPreviewReady or !audioDataUri)
+    // or if it's being remounted due to the 'key' prop.
+    if (!isClient || !audioElement || !audioDataUri) {
+        // If audioElement exists but audioDataUri is null (or audio element is about to unmount), perform cleanup.
+        if (audioElement && !audioDataUri) {
+            audioElement.pause();
+            audioElement.currentTime = 0;
+            if (audioElement.src) audioElement.src = ""; // Clear src to stop loading/playing
+        }
+        return;
     }
 
-    const canPlayAudio = audioDataUri && animationCode?.htmlContent;
-
-    if (canPlayAudio) {
-      // Only update src and load if it has actually changed or was not set
-      if (audioElement.src !== audioDataUri) {
+    // At this point, isClient is true, audioElement exists, and audioDataUri is valid.
+    // The 'key' prop on <audio> ensures this effect runs on a fresh element if audioDataUri changed.
+    
+    // Set src if not already set (e.g., on first mount with this key, or if src was cleared)
+    if (audioElement.src !== audioDataUri) {
         audioElement.src = audioDataUri;
-        audioElement.load(); // Important to load the new source
-      }
-      
-      const playPromise = audioElement.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(err => {
-          console.error("Audio autoplay failed:", err);
-          if (err.name === 'NotAllowedError' || err.name === 'NotSupportedError') {
-            toast({
-              title: "Audio Playback Notice",
-              description: "Audio autoplay was blocked by the browser. Please use the provided controls to play the narration.",
-              variant: "default"
-            });
-          } else {
-             toast({
-              title: "Audio Playback Error",
-              description: "Could not play audio. Please check the console for details.",
-              variant: "destructive"
-            });
-          }
-        });
-      }
-    } else {
-      audioElement.pause();
-      audioElement.currentTime = 0;
-      // If audioDataUri is null/cleared, ensure src is also cleared
-      if (!audioDataUri && audioElement.src) {
-        audioElement.src = "";
-      }
     }
 
-    // Cleanup function
+    // Attempt to play.
+    // The browser might block this if there was no prior user interaction.
+    const playPromise = audioElement.play();
+    if (playPromise !== undefined) {
+        playPromise.catch(err => {
+            console.error("Audio autoplay/play failed:", err);
+            if (err.name === 'NotAllowedError' || err.name === 'NotSupportedError') {
+                toast({
+                    title: "Audio Playback Notice",
+                    description: "Audio autoplay was blocked by the browser. Please use the provided controls to play the narration.",
+                    variant: "default"
+                });
+            } else {
+                toast({
+                    title: "Audio Playback Error",
+                    description: "Could not play audio. Please check the console for details or try again.",
+                    variant: "destructive"
+                });
+            }
+        });
+    }
+
     return () => {
-      if (audioElement) {
-        audioElement.pause();
-      }
+        // Cleanup when the component unmounts or dependencies cause this effect instance
+        // to be cleaned up (e.g. audioDataUri becomes null, <audio> unmounts).
+        if (audioElement) {
+            audioElement.pause();
+        }
     };
-  }, [isClient, audioDataUri, animationCode?.htmlContent, toast]);
+  }, [isClient, audioDataUri, toast]);
 
 
   const handleCreateModule = async () => {
@@ -114,7 +117,7 @@ export function AcademicModuleCreator() {
     setGeneratedImage(null);
     setAnimationCode(null);
     setAudioScript(null);
-    setAudioDataUri(null); // This will trigger the audio useEffect to reset
+    setAudioDataUri(null); // This will trigger the audio useEffect to reset/cleanup
 
     setIdeaGenerated(false);
     setImageGeneratedState(false);
@@ -124,10 +127,11 @@ export function AcademicModuleCreator() {
     
     setCurrentStep(""); 
 
+    // Explicitly pause and reset current audio if any
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
-      audioRef.current.src = ""; // Explicitly clear src here as well
+      audioRef.current.src = ""; 
     }
 
     try {
@@ -156,7 +160,7 @@ export function AcademicModuleCreator() {
         moduleTitle: ideaOutput.moduleTitle,
       });
       if (!codeOutput.htmlContent) throw new Error("Animation HTML content is missing.");
-      setAnimationCode(codeOutput); // Triggers audio useEffect if audioDataUri is already set
+      setAnimationCode(codeOutput);
       setCodeGenerated(true);
       toast({ title: "Animation Code Ready!", description: "Module content created." });
 
@@ -174,10 +178,9 @@ export function AcademicModuleCreator() {
       const speechInput: GenerateSpeechFromTextInput = { textToSpeak: scriptOutput.audioScript };
       const speechOutput = await generateSpeechFromText(speechInput);
       if (!speechOutput.audioDataUri) throw new Error("Audio data URI is missing.");
-      setAudioDataUri(speechOutput.audioDataUri); // Triggers audio useEffect if animationCode is already set
+      setAudioDataUri(speechOutput.audioDataUri); // This triggers the audio useEffect
       setAudioSynthesized(true);
       toast({ title: "Audio Ready!", description: "Voiceover generated successfully." });
-
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
@@ -334,11 +337,15 @@ export function AcademicModuleCreator() {
                     <Film className="mr-2 h-5 w-5 sm:h-6 sm:w-6 text-accent"/>
                     Generated Module Preview
                     </h3>
-                    {audioDataUri && ( // Redundant check given isPreviewReady, but safe
-                         <audio ref={audioRef} controls className="max-w-xs sm:max-w-sm md:max-w-md h-10">
-                            Your browser does not support the audio element.
-                         </audio>
-                    )}
+                    {/* audioDataUri is guaranteed non-null by isPreviewReady */}
+                     <audio 
+                        key={audioDataUri!} // Force remount on src change
+                        ref={audioRef} 
+                        controls 
+                        className="max-w-xs sm:max-w-sm md:max-w-md h-10"
+                     >
+                        Your browser does not support the audio element.
+                     </audio>
                 </div>
                 <div className="flex-grow w-full border rounded-md overflow-hidden shadow-md bg-background">
                   <iframe
@@ -351,7 +358,7 @@ export function AcademicModuleCreator() {
               </>
             );
           }
-          if (isLoading && (!animationCode || !audioDataUri)) { // Show loading if either is missing
+          if (isLoading && (!animationCode || !audioDataUri)) { 
             return (
               <div className="flex flex-col items-center justify-center h-full">
                 <LoadingSpinner className="h-10 w-10 sm:h-12 sm:w-12 text-primary" />
