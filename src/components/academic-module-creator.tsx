@@ -37,7 +37,7 @@ export function AcademicModuleCreator() {
   const [audioDataUri, setAudioDataUri] = useState<string | null>(null);
   
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [currentStepText, setCurrentStepText] = useState<string>(""); // Renamed from currentStep for clarity
+  const [currentStepText, setCurrentStepText] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -84,14 +84,13 @@ export function AcademicModuleCreator() {
           case mediaError.MEDIA_ERR_ABORTED: errorMessage = "Audio playback was aborted."; break;
           case mediaError.MEDIA_ERR_NETWORK: errorMessage = "A network error caused audio download to fail."; break;
           case mediaError.MEDIA_ERR_DECODE: errorMessage = "Audio playback failed: The audio data could not be decoded (corrupted or unparsable)."; break;
-          case mediaError.MEDIA_ERR_SRC_NOT_SUPPORTED: errorMessage = "Audio playback failed: The audio format (e.g., codec or container) provided by the AI is not supported by your browser or the source URI is invalid. Please check the console for the audio data URI's MIME type and full MediaError details."; break;
+          case mediaError.MEDIA_ERR_SRC_NOT_SUPPORTED: errorMessage = "Audio playback failed: The audio format (e.g., codec or container) provided by the AI is not supported by your browser or the source URI is invalid. Please check the console for the full audio data URI and MediaError details for more information on the exact format received."; break;
           default: errorMessage = `Audio playback failed with an unknown error code: ${mediaError.code}. Refer to MediaError details in console.`;
         }
       } else {
         console.log("MediaError object was null or undefined at the time of error handling.");
       }
-      console.log("Final Error Message for UI:", errorMessage);
-      console.log("--- End Audio Playback Error Details ---");
+      console.error("Audio Element Error:", errorMessage, mediaError);
       toast({ title: "Audio Playback Error", description: errorMessage, variant: "destructive" });
     };
     
@@ -109,11 +108,12 @@ export function AcademicModuleCreator() {
           console.log("Audio play() promise rejected:", err);
           if (err.name === 'NotAllowedError') {
             toast({ title: "Audio Autoplay Blocked", description: "Audio autoplay was blocked by the browser. Please use the provided controls to play the narration.", variant: "default" });
-          } else if (err.name === 'NotSupportedError' && !audioElement.error) {
-            toast({ title: "Audio Playback Error", description: "The browser reported it cannot play this audio format. Check console for details.", variant: "destructive" });
+          } else if (err.name === 'NotSupportedError' && !audioElement.error) { // NotSupportedError is a DOMException, not a MediaError
+            toast({ title: "Audio Playback Error", description: "The browser reported it cannot play this audio format, or the audio source is invalid/empty. Check console for details.", variant: "destructive" });
           } else if (err.name !== 'NotSupportedError' && err.name !== 'AbortError' && !audioElement.error) { 
-            toast({ title: "Audio Playback Issue", description: `Could not play audio: ${err.message || 'Unknown error'}.`, variant: "destructive" });
+             toast({ title: "Audio Playback Issue", description: `Could not play audio: ${err.message || 'Unknown error'}.`, variant: "destructive" });
           }
+          // The audioElement.error listener will handle MediaError specific issues (like decode, network, src_not_supported after load attempt)
         });
       }
     } else {
@@ -237,25 +237,26 @@ export function AcademicModuleCreator() {
     if (stageId === 'synthesis' && audioSynthesized) return 'completed';
     
     const currentProcessingStage = STAGES.find(s => currentStepText.toLowerCase().includes(s.processingText.toLowerCase()));
-    if (isLoading && currentProcessingStage?.id === stageId) return 'processing';
+    if (isLoading && currentProcessingStage?.id === stageId && !failedStep) return 'processing'; // Only processing if not failed
     
     // If a previous step failed, subsequent steps are effectively pending/blocked
     if (failedStep) {
         const failedStageIndex = STAGES.findIndex(s => s.id === failedStep);
         const currentStageIndex = STAGES.findIndex(s => s.id === stageId);
-        if (currentStageIndex > failedStageIndex) return 'pending';
+        if (currentStageIndex > failedStageIndex) return 'pending'; // Or 'blocked', visually 'pending' is fine
     }
+    
     // If loading but this step hasn't started and no prior step failed it's pending
-    if (isLoading && !currentProcessingStage && completedStepCount < STAGES.findIndex(s => s.id === stageId)) return 'pending';
-    if (isLoading && currentProcessingStage && STAGES.findIndex(s => s.id === stageId) > STAGES.findIndex(s => s.id === currentProcessingStage.id)  ) return 'pending';
+    if (isLoading && !failedStep) {
+      const currentStageIndex = STAGES.findIndex(s => s.id === stageId);
+      const processingStageIndex = currentProcessingStage ? STAGES.findIndex(s => s.id === currentProcessingStage.id) : -1;
+      if (currentStageIndex > processingStageIndex) return 'pending';
+    }
 
-
-    // If not loading and not completed, it's pending (e.g. before generation starts)
-    // or if it's a step after the current processing one.
+    // Before generation starts, all are pending unless completed (which they aren't)
     if (!isLoading && completedStepCount < STAGES.length && STAGES.findIndex(s => s.id === stageId) >= completedStepCount) return 'pending';
 
-
-    return 'pending'; // Default
+    return 'pending'; // Default if none of the above
   };
 
 
@@ -266,9 +267,7 @@ export function AcademicModuleCreator() {
         {/* Progress Section */}
         {(isLoading || completedStepCount > 0 || error) && (
           <div className="mb-6">
-            <h3 className="text-base sm:text-lg font-semibold text-primary mb-2">
-              {isLoading ? "Generating Module..." : error ? "Generation Failed" : "Generation Status"}
-            </h3>
+             {/* Overall status header removed based on user request */}
             {isLoading && <p className="text-xs text-muted-foreground mb-2">{currentStepText}</p>}
             
             <Progress value={progressPercentage} className="w-full h-2 mb-4" />
@@ -291,13 +290,11 @@ export function AcademicModuleCreator() {
                   <div key={stage.id} className="flex items-start">
                     <IconComponent className={cn("h-4 w-4 mt-0.5 mr-2 shrink-0", iconColor, status === 'processing' && "animate-spin")} />
                     <div className="flex-grow">
+                       {/* Individual status suffixes like "(Processing...)" removed based on user request */}
                       <span className={cn("text-xs sm:text-sm", status === 'completed' && "font-medium", status==='failed' && "text-destructive font-medium")}>
                         {stage.label}
-                        {status === 'processing' && " (Processing...)"}
-                        {status === 'completed' && !isLoading && " (Completed)"}
-                        {status === 'failed' && " (Failed)"}
                       </span>
-                      {stage.id === 'idea' && moduleIdea && (status === 'completed' || status === 'failed' && ideaGenerated) && (
+                      {stage.id === 'idea' && moduleIdea && (status === 'completed' || (status === 'failed' && ideaGenerated)) && (
                         <details className="mt-1 group text-xs">
                           <summary className="text-muted-foreground hover:text-accent list-none py-0.5 flex items-center cursor-pointer">
                             <ChevronRight className="h-3 w-3 mr-1 group-open:rotate-90 transition-transform shrink-0" />
@@ -326,7 +323,7 @@ export function AcademicModuleCreator() {
                           </Card>
                         </details>
                       )}
-                      {stage.id === 'script' && audioScript && (status === 'completed' || status === 'failed' && audioScriptGenerated) && (
+                      {stage.id === 'script' && audioScript && (status === 'completed' || (status === 'failed' && audioScriptGenerated)) && (
                         <details className="mt-1 group text-xs">
                           <summary className="text-muted-foreground hover:text-accent list-none py-0.5 flex items-center cursor-pointer">
                             <ChevronRight className="h-3 w-3 mr-1 group-open:rotate-90 transition-transform shrink-0" />
@@ -368,7 +365,7 @@ export function AcademicModuleCreator() {
               "✨ Generate Full Module"
             )}
           </Button>
-          {error && !isLoading && ( // Only show error if not actively loading, to avoid double error states
+          {error && !isLoading && ( 
             <Alert variant="destructive" className="mt-4">
               <AlertTitle className="text-sm sm:text-base">Error</AlertTitle>
               <AlertDescription className="text-xs sm:text-sm">{error}</AlertDescription>
@@ -434,3 +431,4 @@ export function AcademicModuleCreator() {
     </div>
   );
 }
+
