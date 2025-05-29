@@ -47,7 +47,7 @@ const removeImageBackgroundFlow = ai.defineFlow(
         {text: 'Remove the background from this image, making it transparent. Preserve the main subject. Output should be a PNG image with an alpha channel for transparency.'}
       ],
       config: {
-        responseModalities: ['IMAGE'], 
+        responseModalities: ['TEXT', 'IMAGE'], 
       },
     });
 
@@ -58,3 +58,4 @@ const removeImageBackgroundFlow = ai.defineFlow(
     return { processedImageDataUri: media.url };
   }
 );
+
