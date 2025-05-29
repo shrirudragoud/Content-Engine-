@@ -34,6 +34,11 @@ export async function generateAnimationCode(input: GenerateAnimationCodeInput): 
 
 const IMAGE_PLACEHOLDER_SRC = "%%IMAGE_DATA_URI_PLACEHOLDER%%";
 
+// Helper function to escape string for use in a RegExp
+function escapeRegExp(string: string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+}
+
 const prompt = ai.definePrompt({
   name: 'generateAnimationCodePrompt',
   input: {schema: GenerateAnimationCodeInputSchema},
@@ -196,13 +201,9 @@ const generateAnimationCodeFlow = ai.defineFlow(
 
     // Replace the placeholder with the actual image data URI
     // Using a regex with global flag in case the placeholder somehow appears multiple times.
-    const finalHtmlContent = output.htmlContent.replace(new RegExp(RegExp.quote(`"${IMAGE_PLACEHOLDER_SRC}"`), 'g'), `"${input.imageDataUri}"`);
+    const placeholderRegex = new RegExp(escapeRegExp(`"${IMAGE_PLACEHOLDER_SRC}"`), 'g');
+    const finalHtmlContent = output.htmlContent.replace(placeholderRegex, `"${input.imageDataUri}"`);
     
     return { htmlContent: finalHtmlContent };
   }
 );
-
-// Helper function to escape regex special characters
-RegExp.quote = function(str: string) {
-    return str.replace(/([.?*+^$[\]\\(){}|-])/g, "\\$1");
-};
