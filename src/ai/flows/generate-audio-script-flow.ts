@@ -40,18 +40,18 @@ The overall topic is "{{overallTopic}}".
 This is module {{moduleIndex_plus_1}} of {{totalModulesInPlan}}.
 
 {{#ifCond moduleIndex '==' 0}}
-  For this first module, titled "{{currentModuleTitle}}", provide a brief, engaging introduction to the overall topic of "{{overallTopic}}" and then smoothly transition into explaining the core concept for this specific module: "{{currentModuleConcept}}".
+  For this first module, titled "{{currentModuleTitle}}", provide a brief, engaging introduction to the overall topic of "{{overallTopic}}". Then, smoothly transition into providing a clear and informative explanation of the core concept for this specific module: "{{currentModuleConcept}}". Elaborate on the key details and information a student needs to understand it.
   Make it sound like the beginning of a learning journey.
 {{else}}
-  We just covered "{{previousModuleConcept}}". Now, in this module, "{{currentModuleTitle}}", we'll build on that by exploring: "{{currentModuleConcept}}".
-  Explain this concept clearly and concisely. Make the transition smooth, as if continuing a lesson. Avoid re-introducing the overall topic unless it's natural for context.
+  We just covered "{{previousModuleConcept}}". Now, in this module, "{{currentModuleTitle}}", we'll build on that. Provide a clear and informative explanation of this concept: "{{currentModuleConcept}}". Elaborate on the key details and information a student needs to understand it, connecting it to what we've learned.
+  Make the transition smooth, as if continuing a lesson. Avoid re-introducing the overall topic unless it's natural for context.
 {{/ifCond}}
 
 The script should:
 1. Be conversational and easy to understand.
 2. Be suitable for a text-to-speech engine (use clear sentence structures and common vocabulary).
 3. The entire script for THIS module segment should be approximately 100-150 words long.
-4. Focus on explaining the "{{currentModuleConcept}}" for the module titled "{{currentModuleTitle}}".
+4. Focus on thoroughly explaining the "{{currentModuleConcept}}" for the module titled "{{currentModuleTitle}}", providing key information and details necessary for understanding.
 
 Output ONLY the narration script text for the current module. Do not include any other conversational text, prefixes like "Script:", or markdown formatting.
 Your goal is to provide a continuous, helpful narration across the modules, not a series of disconnected introductions.
@@ -116,5 +116,3 @@ const generateAudioScriptFlow = ai.defineFlow(
     return output;
   }
 );
-
-```
