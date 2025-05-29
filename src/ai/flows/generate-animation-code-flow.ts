@@ -43,7 +43,7 @@ const prompt = ai.definePrompt({
   name: 'generateAnimationCodePrompt',
   input: {schema: GenerateAnimationCodeInputSchema},
   output: {schema: z.object({ htmlContent: z.string() }) }, // LLM outputs HTML with placeholder
-  prompt: `You are an expert in educational technology and instructional design. Your primary task is to build a highly interactive, single-page educational module using HTML, CSS, and JavaScript. The module should be self-contained in a single HTML file.
+  prompt: `You are an expert in educational technology and instructional design. Your primary task is to build a highly interactive, single-page educational module using HTML, CSS, and JavaScript. The module should be self-contained in a single HTML file and present a polished, rectangular appearance, fitting well within a main page container.
 
 **Module Context:**
 Module Title: {{{moduleTitle}}}
@@ -56,7 +56,7 @@ You will be provided with a main image. In the HTML you generate, you MUST use t
 **Core Requirements for the HTML Output:**
 
 1.  **Single HTML File Structure:**
-    *   All CSS must be within \`<style>\` tags in the \`<head>\`. Ensure CSS is well-organized.
+    *   All CSS must be within \`<style>\` tags in the \`<head>\`. Ensure CSS is well-organized and contributes to a modern, clean aesthetic with an improved, topic-appropriate, and accessible color scheme. Consider subtle shadows or borders for the main module container or tab group.
     *   All JavaScript must be within \`<script>\` tags, preferably at the end of the \`<body>\`.
     *   The HTML should be well-structured with semantic tags (e.g., \`<header>\`, \`<nav>\`, \`<main>\`, \`<article>\`, \`<section>\`).
 
@@ -65,7 +65,7 @@ You will be provided with a main image. In the HTML you generate, you MUST use t
     *   There must be exactly THREE tabs with the following titles and purposes:
         *   **"📚 Theory"**:
             *   **Content**: This tab serves as both the introduction and the main theory section. It should explain the core concepts related to \`{{{animationConcept}}}\`.
-            *   **Layout**: For the content area of THIS TAB ONLY, you MUST use the following HTML grid structure and CSS.
+            *   **Layout**: For the content area of THIS TAB ONLY, you MUST use the following HTML grid structure and CSS. The goal is to have a smaller image area on the left and a larger text area on the right to minimize scrolling for text.
                 HTML Structure:
                 \`\`\`html
                 <div class="parent">
@@ -73,10 +73,10 @@ You will be provided with a main image. In the HTML you generate, you MUST use t
                         <!-- Place the module title ({{{moduleTitle}}}) here, e.g., as an <h1> -->
                     </div>
                     <div class="div2">
-                        <!-- The main image (using src="${IMAGE_PLACEHOLDER_SRC}") MUST be placed here. Ensure it fills the container appropriately. Example: <img src="${IMAGE_PLACEHOLDER_SRC}" alt="Visual for {{{moduleTitle}}}" style="width: 100%; height: 100%; object-fit: contain; border-radius: 8px;" /> -->
+                        <!-- The main image (using src="${IMAGE_PLACEHOLDER_SRC}") MUST be placed here. Example: <img src="${IMAGE_PLACEHOLDER_SRC}" alt="Visual for {{{moduleTitle}}}" style="width: 100%; height: 100%; object-fit: contain; border-radius: 8px;" /> -->
                     </div>
                     <div class="div3">
-                        <!-- Place the introductory and theoretical text related to {{{animationConcept}}} here. Use paragraphs, lists, etc. for clarity. -->
+                        <!-- Place the introductory and theoretical text related to {{{animationConcept}}} here. Use paragraphs, lists, etc. for clarity. This area should be spacious. -->
                     </div>
                     <div class="div5">
                         <!-- This can be a footer or empty space within the theory tab's content area. -->
@@ -87,52 +87,67 @@ You will be provided with a main image. In the HTML you generate, you MUST use t
                 \`\`\`css
                 .parent {
                     display: grid;
-                    grid-template-columns: repeat(5, 1fr);
-                    grid-template-rows: repeat(5, 1fr);
-                    gap: 8px; /* Or a suitable gap like 1em or 16px */
+                    grid-template-columns: repeat(5, 1fr); /* 5 columns for finer control */
+                    grid-template-rows: auto 1fr auto; /* Header row, main content row (takes remaining space), footer row */
+                    gap: 16px; /* Adjust gap as needed, e.g., 1em */
                     height: 100%; /* Ensure parent takes full height of tab content area if needed */
-                    padding: 1em; /* Add some padding */
+                    padding: 1em; 
                     box-sizing: border-box;
                 }
-                .div2 { /* Image container */
-                    grid-column: span 3 / span 3;
-                    grid-row: span 3 / span 3;
-                    grid-column-start: 1;
-                    grid-row-start: 2;
-                    display: flex; /* For centering image if needed */
+                .div4 { /* Header/Title container */
+                    grid-column: 1 / -1; /* Span all 5 columns */
+                    grid-row: 1 / 2;
+                    padding: 0.5em 1em;
+                    text-align: center;
+                }
+                .div2 { /* Image container - smaller, on the left */
+                    grid-column: 1 / 3; /* Span first 2 columns */
+                    grid-row: 2 / 3;
+                    display: flex;
                     align-items: center;
                     justify-content: center;
-                    overflow: hidden; /* To contain image */
+                    overflow: hidden;
+                    padding: 0.5em; /* Optional padding around image */
                 }
-                .div3 { /* Text container */
-                    grid-column: span 2 / span 2;
-                    grid-row: span 3 / span 3;
-                    grid-column-start: 4;
-                    grid-row-start: 2;
-                    padding: 1em; /* Add padding for text */
-                    overflow-y: auto; /* Allow scrolling for long text */
-                    border-left: 1px solid #eee; /* Optional separator */
-                }
-                .div4 { /* Header/Title container */
-                    grid-column: span 5 / span 5;
-                    grid-column-start: 1;
-                    grid-row-start: 1;
-                    padding: 0.5em 1em;
-                    text-align: center; /* Center title */
-                }
-                .div5 { /* Footer container */
-                    grid-column: span 5 / span 5;
-                    grid-row-start: 5;
-                    padding: 0.5em 1em;
-                    text-align: center; /* Optional footer content */
-                }
-                /* Ensure the image within div2 is responsive */
                 .div2 img {
                   max-width: 100%;
                   max-height: 100%;
-                  object-fit: contain; /* or 'cover' depending on desired effect */
+                  object-fit: contain; 
                   border-radius: 8px;
                 }
+                .div3 { /* Text container - larger, on the right */
+                    grid-column: 3 / -1; /* Span columns 3, 4, 5 */
+                    grid-row: 2 / 3;
+                    padding: 1em;
+                    overflow-y: auto; /* Allow scrolling if text is very long */
+                    border-left: 1px solid #ddd; /* Optional separator */
+                    font-size: 1.1em; /* Slightly larger text for readability */
+                    line-height: 1.6;
+                }
+                .div5 { /* Footer container */
+                    grid-column: 1 / -1; /* Span all 5 columns */
+                    grid-row: 3 / 4;
+                    padding: 0.5em 1em;
+                    text-align: center;
+                }
+                /* Ensure the image within div2 is responsive and respects its container */
+                .div2 img {
+                  display: block; /* Prevents bottom space under image */
+                  width: 100%;
+                  height: auto; /* Maintain aspect ratio */
+                  max-height: 400px; /* Optional: constrain max height of image if needed */
+                  object-fit: contain; 
+                  border-radius: 8px;
+                }
+                /* Basic styling for tab content visibility */
+                .tab-content { display: none; }
+                .tab-content.active { display: block; height: 100%; /* Important for grid parent height */ }
+                
+                /* Basic tab navigation styling */
+                .tab-nav { display: flex; border-bottom: 1px solid #ccc; margin-bottom: 1em; }
+                .tab-nav button { padding: 0.75em 1.5em; border: none; background: #f0f0f0; cursor: pointer; font-size: 1em; margin-right: 5px; border-radius: 5px 5px 0 0; }
+                .tab-nav button.active { background: #fff; border: 1px solid #ccc; border-bottom: 1px solid #fff; position: relative; top: 1px; font-weight: bold; }
+                .tab-nav button:hover { background: #e0e0e0; }
                 \`\`\`
         *   **"🃏 Flashcards"**:
             *   **Content**: Interactive flashcards for at least 8 key terms/definitions related to the topic (\`{{{animationConcept}}}\`).
@@ -144,8 +159,7 @@ You will be provided with a main image. In the HTML you generate, you MUST use t
             *   If charting is essential and feasible, use a simple approach (e.g., CSS-based bar chart or very basic SVG). If using a library, it MUST be from CDNJS (e.g., a very lightweight chart library if absolutely needed, but prefer native solutions).
 
 3.  **Design and UI/UX:**
-    *   **Modern Aesthetic**: Aim for a clean, modern, and professional look. Consider using subtle gradients, perhaps a touch of glassmorphism on elements like cards or tab containers if it enhances clarity without clutter.
-    *   **Color Palette**: Use a colorful, topic-appropriate, and accessible color scheme. Ensure good contrast.
+    *   **Modern Aesthetic**: Aim for a clean, modern, and professional look. Use an improved, topic-appropriate, and accessible color scheme (e.g., a clear primary color for active elements, good contrast). Consider subtle gradients or glassmorphism on elements like cards or tab containers if it enhances clarity without clutter. The overall module should appear as a well-defined rectangular unit.
     *   **Typography**: Use clear, legible sans-serif fonts (e.g., system-ui, Arial, Helvetica).
     *   **Micro-animations**: Implement subtle hover effects, smooth transitions for tab changes, and other small animations to enhance user experience.
     *   **Responsiveness**: The entire module MUST be mobile-friendly and adapt gracefully to different screen sizes. Use flexbox/grid for layout (outside the specific "Theory" tab grid).
@@ -162,13 +176,13 @@ You will be provided with a main image. In the HTML you generate, you MUST use t
 Provide ONLY the complete HTML content as a string in the 'htmlContent' field.
 
 **Example of how to use the image placeholder in the "Theory" tab's \`.div2\` (adapt as needed):**
-\`<img src="${IMAGE_PLACEHOLDER_SRC}" alt="Visual representation for {{{moduleTitle}}}" style="max-width: 100%; height: auto; border-radius: 8px;" />\`
+\`<img src="${IMAGE_PLACEHOLDER_SRC}" alt="Visual representation for {{{moduleTitle}}}" />\`
 
 **Content Generation Guidance:**
 *   Use the \`{{{moduleTitle}}}\` and \`{{{animationConcept}}}\` to generate plausible and relevant educational content for each tab.
 *   The \`{{{suggestedKeywords}}}\` can inspire the type of interactivity in the "Visual Demo" tab.
 
-Make sure the output is a single, complete, and functional HTML file. Prioritize creating a working, interactive, and well-designed educational module based on all the above requirements. Ensure the flashcards are fully interactive (flip and shuffle). The "Theory" tab MUST use the specified grid layout.
+Make sure the output is a single, complete, and functional HTML file. Prioritize creating a working, interactive, and well-designed educational module based on all the above requirements. Ensure the flashcards are fully interactive (flip and shuffle). The "Theory" tab MUST use the specified grid layout with adjusted proportions for image and text.
 `,
 });
 
