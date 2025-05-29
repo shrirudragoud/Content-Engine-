@@ -56,7 +56,7 @@ You will be provided with a main image. In the HTML you generate, you MUST use t
 **Core Requirements for the HTML Output:**
 
 1.  **Single HTML File Structure:**
-    *   All CSS must be within \`<style>\` tags in the \`<head>\`.
+    *   All CSS must be within \`<style>\` tags in the \`<head>\`. Ensure CSS is well-organized.
     *   All JavaScript must be within \`<script>\` tags, preferably at the end of the \`<body>\`.
     *   The HTML should be well-structured with semantic tags (e.g., \`<header>\`, \`<nav>\`, \`<main>\`, \`<article>\`, \`<section>\`).
 
@@ -64,14 +64,82 @@ You will be provided with a main image. In the HTML you generate, you MUST use t
     *   Implement a clear tabbed navigation system.
     *   There must be exactly THREE tabs with the following titles and purposes:
         *   **"📚 Theory"**:
-            *   **Content**: This tab serves as both the introduction and the main theory section. It should start with a brief overview of the module topic (\`{{{moduleTitle}}}\`) and what the user will learn. Then, it should explain the core concepts related to \`{{{animationConcept}}}\`. Use clear headings, paragraphs, and lists.
-            *   **Layout**: This tab MUST have a two-column layout. The main image (using \`src="${IMAGE_PLACEHOLDER_SRC}"\`) should be displayed in the left column. The right column should contain the introductory and theoretical text.
+            *   **Content**: This tab serves as both the introduction and the main theory section. It should explain the core concepts related to \`{{{animationConcept}}}\`.
+            *   **Layout**: For the content area of THIS TAB ONLY, you MUST use the following HTML grid structure and CSS.
+                HTML Structure:
+                \`\`\`html
+                <div class="parent">
+                    <div class="div4">
+                        <!-- Place the module title ({{{moduleTitle}}}) here, e.g., as an <h1> -->
+                    </div>
+                    <div class="div2">
+                        <!-- The main image (using src="${IMAGE_PLACEHOLDER_SRC}") MUST be placed here. Ensure it fills the container appropriately. Example: <img src="${IMAGE_PLACEHOLDER_SRC}" alt="Visual for {{{moduleTitle}}}" style="width: 100%; height: 100%; object-fit: contain; border-radius: 8px;" /> -->
+                    </div>
+                    <div class="div3">
+                        <!-- Place the introductory and theoretical text related to {{{animationConcept}}} here. Use paragraphs, lists, etc. for clarity. -->
+                    </div>
+                    <div class="div5">
+                        <!-- This can be a footer or empty space within the theory tab's content area. -->
+                    </div>
+                </div>
+                \`\`\`
+                CSS (to be included in the main \`<style>\` tags):
+                \`\`\`css
+                .parent {
+                    display: grid;
+                    grid-template-columns: repeat(5, 1fr);
+                    grid-template-rows: repeat(5, 1fr);
+                    gap: 8px; /* Or a suitable gap like 1em or 16px */
+                    height: 100%; /* Ensure parent takes full height of tab content area if needed */
+                    padding: 1em; /* Add some padding */
+                    box-sizing: border-box;
+                }
+                .div2 { /* Image container */
+                    grid-column: span 3 / span 3;
+                    grid-row: span 3 / span 3;
+                    grid-column-start: 1;
+                    grid-row-start: 2;
+                    display: flex; /* For centering image if needed */
+                    align-items: center;
+                    justify-content: center;
+                    overflow: hidden; /* To contain image */
+                }
+                .div3 { /* Text container */
+                    grid-column: span 2 / span 2;
+                    grid-row: span 3 / span 3;
+                    grid-column-start: 4;
+                    grid-row-start: 2;
+                    padding: 1em; /* Add padding for text */
+                    overflow-y: auto; /* Allow scrolling for long text */
+                    border-left: 1px solid #eee; /* Optional separator */
+                }
+                .div4 { /* Header/Title container */
+                    grid-column: span 5 / span 5;
+                    grid-column-start: 1;
+                    grid-row-start: 1;
+                    padding: 0.5em 1em;
+                    text-align: center; /* Center title */
+                }
+                .div5 { /* Footer container */
+                    grid-column: span 5 / span 5;
+                    grid-row-start: 5;
+                    padding: 0.5em 1em;
+                    text-align: center; /* Optional footer content */
+                }
+                /* Ensure the image within div2 is responsive */
+                .div2 img {
+                  max-width: 100%;
+                  max-height: 100%;
+                  object-fit: contain; /* or 'cover' depending on desired effect */
+                  border-radius: 8px;
+                }
+                \`\`\`
         *   **"🃏 Flashcards"**:
             *   **Content**: Interactive flashcards for at least 8 key terms/definitions related to the topic (\`{{{animationConcept}}}\`).
             *   **Functionality**: Cards MUST flip on click/tap to reveal the answer. Implement a "Shuffle" button that randomizes the order of the flashcards. Ensure the JavaScript for flipping and shuffling is fully functional.
             *   **Animation**: Smooth flip animations for the cards.
         *   **"📐 Visual Demo"**:
-            *   **Content**: An interactive simulation, diagram, or activity to visually explain a key aspect of \`{{{animationConcept}}}\`. This is where the main provided image (\`src="${IMAGE_PLACEHOLDER_SRC}"\`) could be central if not exclusively used in the Theory tab, or another relevant visual could be generated or described for interactive purposes.
+            *   **Content**: An interactive simulation, diagram, or activity to visually explain a key aspect of \`{{{animationConcept}}}\`. This is where the main provided image (\`src="${IMAGE_PLACEHOLDER_SRC}"\`) could be used again if relevant, or another visual described/generated.
             *   **Interactivity**: Use elements like sliders, buttons that trigger changes, or an interactive diagram. The interaction should be meaningful and related to the \`{{{suggestedKeywords}}}\`.
             *   If charting is essential and feasible, use a simple approach (e.g., CSS-based bar chart or very basic SVG). If using a library, it MUST be from CDNJS (e.g., a very lightweight chart library if absolutely needed, but prefer native solutions).
 
@@ -80,8 +148,8 @@ You will be provided with a main image. In the HTML you generate, you MUST use t
     *   **Color Palette**: Use a colorful, topic-appropriate, and accessible color scheme. Ensure good contrast.
     *   **Typography**: Use clear, legible sans-serif fonts (e.g., system-ui, Arial, Helvetica).
     *   **Micro-animations**: Implement subtle hover effects, smooth transitions for tab changes, and other small animations to enhance user experience.
-    *   **Responsiveness**: The entire module MUST be mobile-friendly and adapt gracefully to different screen sizes. Use flexbox/grid for layout.
-    *   **Branding**: Display the \`{{{moduleTitle}}}\` prominently, perhaps in a header or within the "Theory" tab as an H1.
+    *   **Responsiveness**: The entire module MUST be mobile-friendly and adapt gracefully to different screen sizes. Use flexbox/grid for layout (outside the specific "Theory" tab grid).
+    *   **Branding**: The \`{{{moduleTitle}}}\` should be prominently displayed.
 
 4.  **Technical Requirements:**
     *   **JavaScript for Interactivity**: Implement all dynamic behaviors (tabs, flashcards, demo interactions) using vanilla JavaScript. Ensure this JavaScript is functional.
@@ -93,14 +161,14 @@ You will be provided with a main image. In the HTML you generate, you MUST use t
 **Output Format:**
 Provide ONLY the complete HTML content as a string in the 'htmlContent' field.
 
-**Example of how to use the image placeholder (adapt as needed within your structure, especially for the Theory tab's left column):**
+**Example of how to use the image placeholder in the "Theory" tab's \`.div2\` (adapt as needed):**
 \`<img src="${IMAGE_PLACEHOLDER_SRC}" alt="Visual representation for {{{moduleTitle}}}" style="max-width: 100%; height: auto; border-radius: 8px;" />\`
 
 **Content Generation Guidance:**
 *   Use the \`{{{moduleTitle}}}\` and \`{{{animationConcept}}}\` to generate plausible and relevant educational content for each tab.
 *   The \`{{{suggestedKeywords}}}\` can inspire the type of interactivity in the "Visual Demo" tab.
 
-Make sure the output is a single, complete, and functional HTML file. Prioritize creating a working, interactive, and well-designed educational module based on all the above requirements. Ensure the flashcards are fully interactive (flip and shuffle).
+Make sure the output is a single, complete, and functional HTML file. Prioritize creating a working, interactive, and well-designed educational module based on all the above requirements. Ensure the flashcards are fully interactive (flip and shuffle). The "Theory" tab MUST use the specified grid layout.
 `,
 });
 
