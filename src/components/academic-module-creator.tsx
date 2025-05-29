@@ -16,7 +16,7 @@ import { generateAnimationCode, type GenerateAnimationCodeOutput } from "@/ai/fl
 import { generateAudioScript, type GenerateAudioScriptInput, type GenerateAudioScriptOutput } from "@/ai/flows/generate-audio-script-flow";
 import { generateSpeechFromText, type GenerateSpeechFromTextInput, type GenerateSpeechFromTextOutput } from "@/ai/flows/generate-speech-from-text-flow";
 
-import { Code, Lightbulb, Image as ImageIconLucide, Film, CheckCircle, BookOpenText, Mic, FileAudio } from "lucide-react";
+import { Code, Lightbulb, Image as ImageIconLucide, Film, CheckCircle, BookOpenText, Mic, FileAudio, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function AcademicModuleCreator() {
@@ -64,14 +64,12 @@ export function AcademicModuleCreator() {
       
       if (currentAudioSrc && currentAudioSrc.startsWith("data:")) {
         console.log("Full Failed Audio Data URI (inspect in console):");
-        console.log(currentAudioSrc); // Log the full data URI for inspection
+        console.log(currentAudioSrc); 
       }
 
       if (mediaError) {
-        // Create a plain object for more reliable logging of MediaError properties
         const mediaErrorDetails: Record<string, any> = { code: mediaError.code, message: mediaError.message };
         for (const key in mediaError) {
-            // Avoid trying to serialize functions or complex objects that might not log well
             if (Object.prototype.hasOwnProperty.call(mediaError, key) && typeof (mediaError as any)[key] !== 'function') {
                 mediaErrorDetails[key] = (mediaError as any)[key];
             }
@@ -113,7 +111,7 @@ export function AcademicModuleCreator() {
       console.log("AcademicModuleCreator: Received audioDataUri (first 100 chars):", audioDataUri.substring(0, 100));
       if (audioElement.src !== audioDataUri) {
         audioElement.src = audioDataUri;
-        audioElement.load(); // Explicitly load the new source
+        audioElement.load(); 
       }
 
       const playPromise = audioElement.play();
@@ -307,27 +305,33 @@ export function AcademicModuleCreator() {
               </span>
             </div>
             {moduleIdea && ideaGenerated && (
-              <Card className="ml-6 p-2.5 bg-muted/30 text-xs space-y-1 border-l-2 border-accent">
-                <p><strong>Title:</strong> {moduleIdea.moduleTitle}</p>
-                <details className="cursor-pointer">
-                  <summary className="hover:text-accent text-xs">Image Prompt & Image</summary>
-                  <p className="italic p-1 border rounded bg-background mt-1 text-gray-700">{moduleIdea.imagePrompt}</p>
-                  {generatedImage?.imageDataUri && isClient && (
-                    <div className="mt-1.5">
-                      <Image
-                        src={generatedImage.imageDataUri}
-                        alt={moduleIdea?.imagePrompt || "Generated image for module idea"}
-                        width={80}
-                        height={80}
-                        style={{objectFit:"contain", borderRadius: '4px', border: '1px solid hsl(var(--border))'}}
-                        data-ai-hint="educational illustration"
-                      />
-                    </div>
-                  )}
-                </details>
-                <p><strong>Concept:</strong> {moduleIdea.animationConcept}</p>
-                <p><strong>Keywords:</strong> {moduleIdea.suggestedKeywords.join(", ")}</p>
-              </Card>
+               <details className="ml-6 group">
+                <summary className="text-xs text-muted-foreground hover:text-accent list-none py-1 flex items-center cursor-pointer">
+                  <ChevronRight className="h-3 w-3 mr-1 group-open:rotate-90 transition-transform shrink-0" />
+                  <span>View Details</span>
+                </summary>
+                <Card className="p-2.5 bg-muted/30 text-xs space-y-1 border-l-2 border-accent mt-1">
+                  <p><strong>Title:</strong> {moduleIdea.moduleTitle}</p>
+                  <details className="cursor-pointer">
+                    <summary className="hover:text-accent text-xs">Image Prompt & Image</summary>
+                    <p className="italic p-1 border rounded bg-background mt-1 text-gray-700">{moduleIdea.imagePrompt}</p>
+                    {generatedImage?.imageDataUri && isClient && (
+                      <div className="mt-1.5">
+                        <Image
+                          src={generatedImage.imageDataUri}
+                          alt={moduleIdea?.imagePrompt || "Generated image for module idea"}
+                          width={80}
+                          height={80}
+                          style={{objectFit:"contain", borderRadius: '4px', border: '1px solid hsl(var(--border))'}}
+                          data-ai-hint="educational illustration"
+                        />
+                      </div>
+                    )}
+                  </details>
+                  <p><strong>Concept:</strong> {moduleIdea.animationConcept}</p>
+                  <p><strong>Keywords:</strong> {moduleIdea.suggestedKeywords.join(", ")}</p>
+                </Card>
+              </details>
             )}
 
             {(isLoading || imageGeneratedState || (ideaGenerated && !error)) && (
@@ -363,12 +367,15 @@ export function AcademicModuleCreator() {
             </div>
             )}
              {audioScript && audioScriptGenerated && (
-              <Card className="ml-6 p-2.5 bg-muted/30 text-xs space-y-1 border-l-2 border-accent">
-                <details className="cursor-pointer">
-                  <summary className="hover:text-accent text-xs">Audio Script (Click to expand)</summary>
+              <details className="ml-6 group">
+                <summary className="text-xs text-muted-foreground hover:text-accent list-none py-1 flex items-center cursor-pointer">
+                   <ChevronRight className="h-3 w-3 mr-1 group-open:rotate-90 transition-transform shrink-0" />
+                   <span>View Audio Script</span>
+                </summary>
+                <Card className="p-2.5 bg-muted/30 text-xs space-y-1 border-l-2 border-accent mt-1">
                   <p className="italic p-1 border rounded bg-background mt-1 text-gray-700 whitespace-pre-wrap">{audioScript.audioScript}</p>
-                </details>
-              </Card>
+                </Card>
+              </details>
             )}
 
             {(isLoading || audioSynthesized || (audioScriptGenerated && !error)) && (
@@ -386,12 +393,15 @@ export function AcademicModuleCreator() {
       </Card>
 
       {/* Right Panel - Adjusted to be wider */}
-      <Card className="md:w-3/4 lg:w-4/5 flex-grow p-4 sm:p-6 shadow-lg md:max-h-[calc(100vh-120px)] flex flex-col">
+      <Card className={cn(
+        "md:w-3/4 lg:w-4/5 flex-grow shadow-lg md:max-h-[calc(100vh-120px)] flex flex-col overflow-hidden",
+         isPreviewReady ? "p-1" : "p-4 sm:p-6" 
+      )}>
         {(() => {
           if (isPreviewReady) {
             return (
               <>
-                <div className="flex items-center justify-between mb-1.5 sm:mb-2 shrink-0">
+                <div className="flex items-center justify-between mb-1 sm:mb-1.5 shrink-0 px-1 pt-1">
                     <h3 className="text-base sm:text-lg font-semibold flex items-center">
                     <Film className="mr-2 h-5 w-5 sm:h-6 sm:w-6 text-accent"/>
                     Generated Module Preview
@@ -405,11 +415,11 @@ export function AcademicModuleCreator() {
                         Your browser does not support the audio element.
                      </audio>
                 </div>
-                <div className="flex-grow w-full border rounded-md overflow-hidden shadow-md bg-background">
+                <div className="flex-grow w-full overflow-hidden rounded-md"> 
                   <iframe
                     srcDoc={animationCode!.htmlContent} 
                     title="Generated Module Preview"
-                    className="w-full h-full"
+                    className="w-full h-full border-0"
                     sandbox="allow-scripts allow-same-origin" 
                   />
                 </div>
@@ -438,5 +448,6 @@ export function AcademicModuleCreator() {
     </div>
   );
 }
+    
 
     
