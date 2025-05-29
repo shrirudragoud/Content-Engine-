@@ -50,6 +50,7 @@ const generateSpeechFromTextFlow = ai.defineFlow(
     });
     
     if (media && media.url) {
+      console.log(`TTS Flow: Received media.url: ${media.url}`);
       try {
         // Fetch the audio content from the URL
         const response = await fetch(media.url);
@@ -62,23 +63,27 @@ const generateSpeechFromTextFlow = ai.defineFlow(
         const buffer = Buffer.from(arrayBuffer); // Convert ArrayBuffer to Node.js Buffer
 
         // Determine the content type
-        const contentType = response.headers.get('Content-Type') || 'audio/wav'; // Default to wav if not provided
-
+        const detectedContentTypeHeader = response.headers.get('Content-Type');
+        const contentType = detectedContentTypeHeader || 'audio/wav'; // Default to wav if not provided
+        console.log(`TTS Flow: Determined Content-Type: ${contentType} (from header: ${detectedContentTypeHeader || 'N/A'}, default: audio/wav if null)`);
+        
         // Base64 encode the audio buffer
         const base64Audio = buffer.toString('base64');
 
         // Construct the data URI
         const audioDataUri = `data:${contentType};base64,${base64Audio}`;
+        console.log(`TTS Flow: Constructed audioDataUri (first 100 chars): ${audioDataUri.substring(0,100)}...`);
+
 
         return { audioDataUri };
 
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Unknown error during audio processing.";
-        console.error('Error processing audio from URL:', error);
+        console.error('TTS Flow: Error processing audio from URL:', error);
         throw new Error(`Text-to-speech generation failed: Could not retrieve or encode audio data. Details: ${errorMessage}`);
       }
     } else {
-      console.error('TTS generation response did not contain media.url:', {media});
+      console.error('TTS Flow: TTS generation response did not contain media.url:', {media});
       throw new Error('Text-to-speech generation failed. The AI model did not return valid audio data. Check model availability and plugin configuration.');
     }
   }

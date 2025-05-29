@@ -53,9 +53,29 @@ export function AcademicModuleCreator() {
     }
 
     const handleAudioError = (event: Event) => {
-      const mediaError = (event.target as HTMLAudioElement).error;
+      const targetAudioElement = event.target as HTMLAudioElement;
+      const mediaError = targetAudioElement.error;
+      const currentAudioSrc = targetAudioElement.currentSrc || targetAudioElement.src;
+      
       let errorMessage = "Audio playback failed: Unknown error.";
+
+      console.error("--- Audio Playback Error Details ---");
+      console.error("Failed Audio Source (first 200 chars):", currentAudioSrc ? currentAudioSrc.substring(0, 200) + (currentAudioSrc.length > 200 ? "..." : "") : "N/A");
+      
+      if (currentAudioSrc && currentAudioSrc.startsWith("data:")) {
+        console.error("Full Failed Audio Data URI (inspect in console):");
+        console.error(currentAudioSrc);
+      }
+
       if (mediaError) {
+        const mediaErrorDetails: Record<string, any> = { code: mediaError.code, message: mediaError.message };
+        for (const key in mediaError) {
+            if (Object.prototype.hasOwnProperty.call(mediaError, key) && typeof (mediaError as any)[key] !== 'function') {
+                mediaErrorDetails[key] = (mediaError as any)[key];
+            }
+        }
+        console.error("MediaError Object Details:", mediaErrorDetails);
+
         switch (mediaError.code) {
           case mediaError.MEDIA_ERR_ABORTED:
             errorMessage = "Audio playback was aborted by the user or system.";
@@ -67,13 +87,17 @@ export function AcademicModuleCreator() {
             errorMessage = "Audio playback failed: The audio data could not be decoded. The file might be corrupted or the format, while recognized, is unparsable.";
             break;
           case mediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-            errorMessage = "Audio playback failed: The audio format (e.g., codec or container) provided by the AI is not supported by your browser or the source URI is invalid. Please check the console for the audio data URI's MIME type.";
+            errorMessage = "Audio playback failed: The audio format (e.g., codec or container) from the AI is not supported by your browser, or the data URI is invalid. Check the console for the full audio data URI and MediaError details.";
             break;
           default:
-            errorMessage = `Audio playback failed with an unknown error code: ${mediaError.code}.`;
+            errorMessage = `Audio playback failed with an unknown error code: ${mediaError.code}. Refer to MediaError details in console.`;
         }
+      } else {
+         console.error("MediaError object was null or undefined at the time of error handling.");
       }
-      console.error("Audio Element Error:", errorMessage, mediaError);
+      console.error("Final Error Message for UI:", errorMessage);
+      console.error("--- End Audio Playback Error Details ---");
+      
       toast({
         title: "Audio Playback Error",
         description: errorMessage,
@@ -84,7 +108,7 @@ export function AcademicModuleCreator() {
     audioElement.addEventListener('error', handleAudioError);
 
     if (audioDataUri) {
-      console.log("Received audioDataUri (first 100 chars):", audioDataUri.substring(0, 100));
+      console.log("AcademicModuleCreator: Received audioDataUri (first 100 chars):", audioDataUri.substring(0, 100));
       if (audioElement.src !== audioDataUri) {
         audioElement.src = audioDataUri;
         audioElement.load(); 
@@ -93,6 +117,8 @@ export function AcademicModuleCreator() {
       const playPromise = audioElement.play();
       if (playPromise !== undefined) {
         playPromise.catch(err => {
+          // Error handler 'handleAudioError' will catch most playback failures.
+          // This catch is primarily for play() specific issues like NotAllowedError or if the 'error' event hasn't fired yet.
           console.error("Audio play() promise rejected:", err);
           if (err.name === 'NotAllowedError') {
             toast({
@@ -101,18 +127,16 @@ export function AcademicModuleCreator() {
               variant: "default"
             });
           } else if (err.name === 'NotSupportedError' && !audioElement.error) {
-            // This specific NotSupportedError during play() might not have triggered the 'error' event yet
-            // or is a different kind of support issue (e.g. EME).
             toast({
               title: "Audio Playback Error",
-              description: "The browser reported it cannot play this audio format, or the audio source is invalid even after attempting to load. Check console for details.",
+              description: "The browser reported it cannot play this audio format before a formal 'error' event. Check console for details on the audio source.",
               variant: "destructive"
             });
-          } else if (err.name !== 'NotSupportedError') { 
-            // Avoid double-toasting if already handled by 'error' event for NotSupportedError
+          } else if (err.name !== 'NotSupportedError' && err.name !== 'AbortError' && !audioElement.error) { 
+             // Avoid double-toasting if 'error' event will handle it. AbortError is also common if src changes rapidly.
             toast({
               title: "Audio Playback Issue",
-              description: `Could not play audio: ${err.message || 'Unknown error'}. Ensure the audio source is valid.`,
+              description: `Could not play audio: ${err.message || 'Unknown error during play attempt'}.`,
               variant: "destructive"
             });
           }
@@ -130,6 +154,7 @@ export function AcademicModuleCreator() {
       if (audioElement) {
         audioElement.removeEventListener('error', handleAudioError);
         audioElement.pause();
+        // It's good practice to revoke object URLs if they were used, but not applicable for data URIs here.
       }
     };
   }, [isClient, audioDataUri, toast]);
