@@ -48,7 +48,7 @@ const removeImageBackgroundFlow = ai.defineFlow(
       ],
       config: {
         responseModalities: ['TEXT', 'IMAGE'],
-        safetySettings: [ // Added safety settings
+        safetySettings: [ 
           {
             category: 'HARM_CATEGORY_HATE_SPEECH',
             threshold: 'BLOCK_NONE',
@@ -70,7 +70,7 @@ const removeImageBackgroundFlow = ai.defineFlow(
     });
 
     if (!media || !media.url) {
-      throw new Error('Background removal failed to return an image.');
+      throw new Error('Background removal failed: The AI model did not return an image.');
     }
     
     return { processedImageDataUri: media.url };
