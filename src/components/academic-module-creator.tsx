@@ -1,20 +1,21 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/loading-spinner";
 import { generateModuleContentIdea, type GenerateModuleContentIdeaOutput } from "@/ai/flows/generate-module-content-idea-flow";
 import { generateImage, type GenerateImageOutput } from "@/ai/flows/generate-image-from-prompt";
 import { generateAnimationCode, type GenerateAnimationCodeOutput } from "@/ai/flows/generate-animation-code-flow";
-import { Code, Lightbulb, Image as ImageIcon, Film } from "lucide-react";
+import { Code, Lightbulb, Image as ImageIcon, Film, CheckCircle, BookOpenText, Code2Icon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export function AcademicModuleCreator() {
   const [topic, setTopic] = useState<string>("");
@@ -26,6 +27,10 @@ export function AcademicModuleCreator() {
   const [currentStep, setCurrentStep] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+
+  const [ideaGenerated, setIdeaGenerated] = useState(false);
+  const [imageGeneratedState, setImageGeneratedState] = useState(false); // Renamed to avoid conflict with component
+  const [codeGenerated, setCodeGenerated] = useState(false);
 
   const handleCreateModule = async () => {
     if (!topic.trim()) {
@@ -43,12 +48,16 @@ export function AcademicModuleCreator() {
     setModuleIdea(null);
     setGeneratedImage(null);
     setAnimationCode(null);
+    setIdeaGenerated(false);
+    setImageGeneratedState(false);
+    setCodeGenerated(false);
 
     try {
       setCurrentStep("Generating module ideas & image prompt...");
       toast({ title: "Step 1: Generating Ideas", description: "AI is brainstorming content and image ideas..." });
       const ideaOutput = await generateModuleContentIdea({ topic });
       setModuleIdea(ideaOutput);
+      setIdeaGenerated(true);
       toast({ title: "Ideas Generated!", description: "Module title and image prompt created." });
 
       setCurrentStep("Generating image...");
@@ -57,6 +66,7 @@ export function AcademicModuleCreator() {
       const imageOutput = await generateImage({ prompt: ideaOutput.imagePrompt });
       if (!imageOutput.imageDataUri) throw new Error("Image data URI is missing.");
       setGeneratedImage(imageOutput);
+      setImageGeneratedState(true);
       toast({ title: "Image Generated!", description: "Visual created successfully." });
 
       setCurrentStep("Generating animation code...");
@@ -69,11 +79,12 @@ export function AcademicModuleCreator() {
       });
       if (!codeOutput.htmlContent) throw new Error("Animation HTML content is missing.");
       setAnimationCode(codeOutput);
+      setCodeGenerated(true);
       toast({ title: "Animation Code Ready!", description: "Module creation complete." });
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
-      setError(`Failed during '${currentStep}': ${errorMessage}`);
+      setError(`Failed during '${currentStep || "module creation"}': ${errorMessage}`);
       toast({
         title: "Error Creating Module",
         description: errorMessage,
@@ -85,84 +96,126 @@ export function AcademicModuleCreator() {
       setCurrentStep("");
     }
   };
-
+  
   return (
-    <Card className="w-full max-w-3xl shadow-xl">
-      <CardHeader>
-        <CardTitle className="text-3xl font-bold text-center flex items-center justify-center">
-          <Lightbulb className="mr-3 h-8 w-8 text-primary" />
-          AI Academic Module Creator
-        </CardTitle>
-        <CardDescription className="text-center text-base">
-          Enter an academic topic, and AI will generate a module title, a relevant image, and simple HTML/CSS/JS animation code.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="space-y-2">
-          <Label htmlFor="topic" className="text-lg">Enter Academic Topic:</Label>
+    <div className="w-full max-w-full flex flex-col md:flex-row gap-6 flex-grow"> {/* Adjusted max-width and flex-grow */}
+      {/* Left Panel */}
+      <Card className="md:w-2/5 lg:w-1/3 flex flex-col space-y-4 p-4 sm:p-6 shadow-lg h-fit md:max-h-[calc(100vh-120px)] md:overflow-y-auto">
+        <div>
+          <Label htmlFor="topic" className="text-base sm:text-lg font-semibold">Academic Topic</Label>
           <Input
             id="topic"
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            placeholder="e.g., Photosynthesis, The Water Cycle, Pythagorean Theorem"
-            className="text-base"
+            placeholder="e.g., Photosynthesis, The Water Cycle"
+            className="text-sm sm:text-base mt-1"
             disabled={isLoading}
           />
         </div>
 
-        {error && (
-          <Alert variant="destructive">
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
         <Button
           onClick={handleCreateModule}
-          disabled={isLoading}
-          className="w-full text-lg py-6"
+          disabled={isLoading || !topic.trim()}
+          className="w-full text-base sm:text-lg py-2.5 sm:py-3"
           size="lg"
         >
           {isLoading ? (
-            <> <LoadingSpinner className="mr-2 h-5 w-5" /> {currentStep || "Creating Module..."} </>
+            <> <LoadingSpinner className="mr-2 h-4 sm:h-5 w-4 sm:w-5" /> {currentStep || "Generating..."} </>
           ) : (
-            "✨ Generate Academic Module"
+            "✨ Generate Module"
           )}
         </Button>
 
-        {moduleIdea && (
-          <Card className="bg-muted/30">
-            <CardHeader>
-              <CardTitle className="flex items-center"><Lightbulb className="mr-2 h-5 w-5 text-accent"/>Module Idea</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <Label className="font-semibold">Title:</Label>
-                <p className="text-lg">{moduleIdea.moduleTitle}</p>
-              </div>
-              <div>
-                <Label className="font-semibold">Image Prompt (for AI):</Label>
-                <p className="italic text-sm p-2 border rounded-md bg-background">{moduleIdea.imagePrompt}</p>
-              </div>
-              <div>
-                <Label className="font-semibold">Animation Concept:</Label>
-                <p>{moduleIdea.animationConcept}</p>
-              </div>
-              <div>
-                <Label className="font-semibold">Suggested Keywords:</Label>
-                <p>{moduleIdea.suggestedKeywords.join(", ")}</p>
-              </div>
-            </CardContent>
-          </Card>
+        {error && (
+          <Alert variant="destructive" className="mt-2">
+            <AlertTitle className="text-sm sm:text-base">Error</AlertTitle>
+            <AlertDescription className="text-xs sm:text-sm">{error}</AlertDescription>
+          </Alert>
         )}
 
-        {generatedImage?.imageDataUri && (
-          <Card className="bg-muted/30">
-            <CardHeader>
-              <CardTitle className="flex items-center"><ImageIcon className="mr-2 h-5 w-5 text-accent"/>Generated Image</CardTitle>
-            </CardHeader>
-            <CardContent className="flex justify-center">
-              <div className="relative aspect-video w-full max-w-md rounded-md overflow-hidden border-2 border-primary shadow-md">
+        {(isLoading || ideaGenerated || imageGeneratedState || codeGenerated || moduleIdea) && (
+          <div className="space-y-2.5 mt-3 pt-3 border-t">
+            <h3 className="text-sm sm:text-base font-semibold text-primary">Generation Steps:</h3>
+            
+            <div className="flex items-center">
+              {isLoading && currentStep.includes("ideas") ? (
+                <LoadingSpinner className="h-4 w-4 text-accent mr-2 shrink-0" />
+              ) : ideaGenerated ? (
+                <CheckCircle className="h-4 w-4 text-green-500 mr-2 shrink-0" />
+              ) : (
+                <Lightbulb className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
+              )}
+              <span className={cn("text-xs sm:text-sm", ideaGenerated && "font-medium", error && currentStep.includes("ideas") && "text-destructive")}>
+                Module Idea {isLoading && currentStep.includes("ideas") ? "(Processing...)" : ideaGenerated ? "(Completed)" : error && currentStep.includes("ideas") ? "(Failed)" : ""}
+              </span>
+            </div>
+            {moduleIdea && ideaGenerated && (
+              <Card className="ml-6 p-2.5 bg-muted/30 text-xs space-y-1 border-l-2 border-accent">
+                <p><strong>Title:</strong> {moduleIdea.moduleTitle}</p>
+                <details className="cursor-pointer">
+                  <summary className="hover:text-accent text-xs">Image Prompt (Click to expand)</summary>
+                  <p className="italic p-1 border rounded bg-background mt-1 text-gray-700">{moduleIdea.imagePrompt}</p>
+                </details>
+                <p><strong>Concept:</strong> {moduleIdea.animationConcept}</p>
+                <p><strong>Keywords:</strong> {moduleIdea.suggestedKeywords.join(", ")}</p>
+              </Card>
+            )}
+
+            {(isLoading || imageGeneratedState || (ideaGenerated && !error)) && (
+            <div className="flex items-center">
+              {isLoading && currentStep.includes("image") ? (
+                <LoadingSpinner className="h-4 w-4 text-accent mr-2 shrink-0" />
+              ) : imageGeneratedState ? (
+                <CheckCircle className="h-4 w-4 text-green-500 mr-2 shrink-0" />
+              ) : (
+                <ImageIcon className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
+              )}
+              <span className={cn("text-xs sm:text-sm", imageGeneratedState && "font-medium", error && currentStep.includes("image") && "text-destructive")}>
+                Image Generation {isLoading && currentStep.includes("image") ? "(Processing...)" : imageGeneratedState ? "(Completed)" : error && currentStep.includes("image") ? "(Failed)" : ""}
+              </span>
+            </div>
+            )}
+
+            {(isLoading || codeGenerated || (imageGeneratedState && !error)) && (
+            <div className="flex items-center">
+              {isLoading && currentStep.includes("animation") ? (
+                <LoadingSpinner className="h-4 w-4 text-accent mr-2 shrink-0" />
+              ) : codeGenerated ? (
+                <CheckCircle className="h-4 w-4 text-green-500 mr-2 shrink-0" />
+              ) : (
+                <Code className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
+              )}
+              <span className={cn("text-xs sm:text-sm", codeGenerated && "font-medium", error && currentStep.includes("animation") && "text-destructive")}>
+                Animation Code {isLoading && currentStep.includes("animation") ? "(Processing...)" : codeGenerated ? "(Completed)" : error && currentStep.includes("animation") ? "(Failed)" : ""}
+              </span>
+            </div>
+            )}
+          </div>
+        )}
+      </Card>
+
+      {/* Right Panel */}
+      <Card className="md:w-3/5 lg:w-2/3 flex-grow p-4 sm:p-6 shadow-lg md:max-h-[calc(100vh-120px)] overflow-y-auto">
+        {!generatedImage && !animationCode && !isLoading && (
+          <div className="flex flex-col items-center justify-center h-full border-2 border-dashed rounded-lg p-6 sm:p-12 text-center">
+            <BookOpenText className="h-12 w-12 sm:h-16 sm:w-16 mb-3 sm:mb-4 text-primary" />
+            <p className="text-base sm:text-xl font-semibold">Module Preview Area</p>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">Enter a topic and generate a module. The image, animation, and code will appear here.</p>
+          </div>
+        )}
+        
+        {isLoading && !generatedImage && !animationCode && (
+           <div className="flex flex-col items-center justify-center h-full">
+            <LoadingSpinner className="h-10 w-10 sm:h-12 sm:w-12 text-primary" />
+            <p className="mt-3 sm:mt-4 text-sm sm:text-lg text-muted-foreground">{currentStep || "Generating your module..."}</p>
+          </div>
+        )}
+
+        <div className="space-y-4 sm:space-y-6">
+          {generatedImage?.imageDataUri && (
+            <div>
+              <h3 className="text-base sm:text-lg font-semibold mb-1.5 sm:mb-2 flex items-center"><ImageIcon className="mr-2 h-5 w-5 sm:h-6 sm:w-6 text-accent"/>Generated Image</h3>
+              <div className="relative aspect-video w-full max-w-md mx-auto rounded-md overflow-hidden border-2 border-primary shadow-md bg-muted/20">
                 <Image
                   src={generatedImage.imageDataUri}
                   alt={moduleIdea?.imagePrompt || "Generated image for module"}
@@ -171,38 +224,36 @@ export function AcademicModuleCreator() {
                   data-ai-hint="educational illustration"
                 />
               </div>
-            </CardContent>
-          </Card>
-        )}
+            </div>
+          )}
 
-        {animationCode?.htmlContent && (
-          <Card className="bg-muted/30">
-            <CardHeader>
-              <CardTitle className="flex items-center"><Film className="mr-2 h-5 w-5 text-accent"/>Animation Preview</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="aspect-video w-full border rounded-md overflow-hidden shadow-md">
-                <iframe
-                  srcDoc={animationCode.htmlContent}
-                  title="Animation Preview"
-                  className="w-full h-full"
-                  sandbox="allow-scripts allow-same-origin" 
-                />
+          {animationCode?.htmlContent && (
+            <>
+              <div>
+                <h3 className="text-base sm:text-lg font-semibold mb-1.5 sm:mb-2 flex items-center"><Film className="mr-2 h-5 w-5 sm:h-6 sm:w-6 text-accent"/>Animation Preview</h3>
+                <div className="aspect-video w-full border rounded-md overflow-hidden shadow-md bg-background">
+                  <iframe
+                    srcDoc={animationCode.htmlContent}
+                    title="Animation Preview"
+                    className="w-full h-full"
+                    sandbox="allow-scripts allow-same-origin" 
+                  />
+                </div>
               </div>
-               <div>
-                <Label htmlFor="animation-code" className="font-semibold flex items-center"><Code className="mr-2 h-4 w-4"/>Generated Animation Code (HTML, CSS, JS):</Label>
+              <div>
+                <h3 className="text-base sm:text-lg font-semibold mb-1.5 sm:mb-2 flex items-center"><Code2Icon className="mr-2 h-5 w-5 sm:h-6 sm:w-6 text-accent"/>Generated Animation Code</h3>
                 <Textarea
                   id="animation-code"
                   value={animationCode.htmlContent}
                   readOnly
-                  rows={15}
-                  className="w-full mt-1 text-xs font-mono bg-background"
+                  rows={12}
+                  className="w-full text-xs font-mono bg-muted/20 border-input"
                 />
               </div>
-            </CardContent>
-          </Card>
-        )}
-      </CardContent>
-    </Card>
+            </>
+          )}
+        </div>
+      </Card>
+    </div>
   );
 }
