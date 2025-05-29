@@ -16,7 +16,7 @@ import { generateAnimationCode, type GenerateAnimationCodeOutput } from "@/ai/fl
 import { generateAudioScript, type GenerateAudioScriptInput, type GenerateAudioScriptOutput } from "@/ai/flows/generate-audio-script-flow";
 import { generateSpeechFromText, type GenerateSpeechFromTextInput, type GenerateSpeechFromTextOutput } from "@/ai/flows/generate-speech-from-text-flow";
 
-import { Code, Lightbulb, Image as ImageIcon, Film, CheckCircle, BookOpenText, Mic, FileAudio } from "lucide-react";
+import { Code, Lightbulb, Image as ImageIconLucide, Film, CheckCircle, BookOpenText, Mic, FileAudio } from "lucide-react"; // Renamed ImageIcon to ImageIconLucide
 import { cn } from "@/lib/utils";
 
 export function AcademicModuleCreator() {
@@ -47,33 +47,54 @@ export function AcademicModuleCreator() {
 
   useEffect(() => {
     const audioElement = audioRef.current;
-    if (isClient && audioElement) {
-      if (audioDataUri && animationCode?.htmlContent) {
+    if (!isClient || !audioElement) {
+      return;
+    }
+
+    const canPlayAudio = audioDataUri && animationCode?.htmlContent;
+
+    if (canPlayAudio) {
+      // Only update src and load if it has actually changed or was not set
+      if (audioElement.src !== audioDataUri) {
         audioElement.src = audioDataUri;
-        audioElement.load();
-        const playPromise = audioElement.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(err => {
-            console.error("Audio autoplay failed:", err);
-            toast({ 
-              title: "Audio Playback Notice", 
-              description: "Audio autoplay was blocked by the browser. Please use the provided controls to play the narration.", 
+        audioElement.load(); // Important to load the new source
+      }
+      
+      const playPromise = audioElement.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(err => {
+          console.error("Audio autoplay failed:", err);
+          if (err.name === 'NotAllowedError' || err.name === 'NotSupportedError') {
+            toast({
+              title: "Audio Playback Notice",
+              description: "Audio autoplay was blocked by the browser. Please use the provided controls to play the narration.",
               variant: "default"
             });
-          });
-        }
-      } else {
-        audioElement.pause();
-        audioElement.currentTime = 0;
+          } else {
+             toast({
+              title: "Audio Playback Error",
+              description: "Could not play audio. Please check the console for details.",
+              variant: "destructive"
+            });
+          }
+        });
+      }
+    } else {
+      audioElement.pause();
+      audioElement.currentTime = 0;
+      // If audioDataUri is null/cleared, ensure src is also cleared
+      if (!audioDataUri && audioElement.src) {
+        audioElement.src = "";
       }
     }
-    // Cleanup function to pause audio if component unmounts or critical deps change
+
+    // Cleanup function
     return () => {
       if (audioElement) {
         audioElement.pause();
       }
     };
-  }, [isClient, audioDataUri, animationCode, toast]);
+  }, [isClient, audioDataUri, animationCode?.htmlContent, toast]);
 
 
   const handleCreateModule = async () => {
@@ -93,7 +114,7 @@ export function AcademicModuleCreator() {
     setGeneratedImage(null);
     setAnimationCode(null);
     setAudioScript(null);
-    setAudioDataUri(null);
+    setAudioDataUri(null); // This will trigger the audio useEffect to reset
 
     setIdeaGenerated(false);
     setImageGeneratedState(false);
@@ -106,7 +127,7 @@ export function AcademicModuleCreator() {
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
-      audioRef.current.src = ""; 
+      audioRef.current.src = ""; // Explicitly clear src here as well
     }
 
     try {
@@ -135,7 +156,7 @@ export function AcademicModuleCreator() {
         moduleTitle: ideaOutput.moduleTitle,
       });
       if (!codeOutput.htmlContent) throw new Error("Animation HTML content is missing.");
-      setAnimationCode(codeOutput);
+      setAnimationCode(codeOutput); // Triggers audio useEffect if audioDataUri is already set
       setCodeGenerated(true);
       toast({ title: "Animation Code Ready!", description: "Module content created." });
 
@@ -153,7 +174,7 @@ export function AcademicModuleCreator() {
       const speechInput: GenerateSpeechFromTextInput = { textToSpeak: scriptOutput.audioScript };
       const speechOutput = await generateSpeechFromText(speechInput);
       if (!speechOutput.audioDataUri) throw new Error("Audio data URI is missing.");
-      setAudioDataUri(speechOutput.audioDataUri);
+      setAudioDataUri(speechOutput.audioDataUri); // Triggers audio useEffect if animationCode is already set
       setAudioSynthesized(true);
       toast({ title: "Audio Ready!", description: "Voiceover generated successfully." });
 
@@ -173,7 +194,6 @@ export function AcademicModuleCreator() {
     }
   };
   
-  const allStepsComplete = ideaGenerated && imageGeneratedState && codeGenerated && audioScriptGenerated && audioSynthesized;
   const isPreviewReady = isClient && animationCode?.htmlContent && audioDataUri;
 
   return (
@@ -252,7 +272,7 @@ export function AcademicModuleCreator() {
             <div className="flex items-center">
               {isLoading && currentStep.includes("image") ? ( <LoadingSpinner className="h-4 w-4 text-accent mr-2 shrink-0" /> ) 
                : imageGeneratedState ? ( <CheckCircle className="h-4 w-4 text-green-500 mr-2 shrink-0" /> ) 
-               : ( <ImageIcon className="h-4 w-4 text-muted-foreground mr-2 shrink-0" /> )}
+               : ( <ImageIconLucide className="h-4 w-4 text-muted-foreground mr-2 shrink-0" /> )}
               <span className={cn("text-xs sm:text-sm", imageGeneratedState && "font-medium", error && currentStep.includes("image") && "text-destructive")}>
                 Image Generation {isLoading && currentStep.includes("image") ? "(Processing...)" : imageGeneratedState ? "(Completed)" : error && currentStep.includes("image") ? "(Failed)" : ""}
               </span>
@@ -331,7 +351,7 @@ export function AcademicModuleCreator() {
               </>
             );
           }
-          if (isLoading) {
+          if (isLoading && (!animationCode || !audioDataUri)) { // Show loading if either is missing
             return (
               <div className="flex flex-col items-center justify-center h-full">
                 <LoadingSpinner className="h-10 w-10 sm:h-12 sm:w-12 text-primary" />
