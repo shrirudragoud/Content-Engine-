@@ -46,17 +46,33 @@ export function AcademicModuleCreator() {
   }, []);
 
   useEffect(() => {
-    if (isClient && audioDataUri && animationCode?.htmlContent && audioRef.current) {
-      audioRef.current.src = audioDataUri;
-      audioRef.current.load();
-      const playPromise = audioRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(error => {
-          console.error("Audio autoplay failed:", error);
-          toast({ title: "Audio Playback Notice", description: "Audio autoplay was blocked by the browser. Please use controls.", variant: "default"});
-        });
+    const audioElement = audioRef.current;
+    if (isClient && audioElement) {
+      if (audioDataUri && animationCode?.htmlContent) {
+        audioElement.src = audioDataUri;
+        audioElement.load();
+        const playPromise = audioElement.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(err => {
+            console.error("Audio autoplay failed:", err);
+            toast({ 
+              title: "Audio Playback Notice", 
+              description: "Audio autoplay was blocked by the browser. Please use the provided controls to play the narration.", 
+              variant: "default"
+            });
+          });
+        }
+      } else {
+        audioElement.pause();
+        audioElement.currentTime = 0;
       }
     }
+    // Cleanup function to pause audio if component unmounts or critical deps change
+    return () => {
+      if (audioElement) {
+        audioElement.pause();
+      }
+    };
   }, [isClient, audioDataUri, animationCode, toast]);
 
 
@@ -87,11 +103,10 @@ export function AcademicModuleCreator() {
     
     setCurrentStep(""); 
 
-    // Stop any currently playing audio
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
-      audioRef.current.src = ""; // Clear source
+      audioRef.current.src = ""; 
     }
 
     try {
@@ -159,6 +174,7 @@ export function AcademicModuleCreator() {
   };
   
   const allStepsComplete = ideaGenerated && imageGeneratedState && codeGenerated && audioScriptGenerated && audioSynthesized;
+  const isPreviewReady = isClient && animationCode?.htmlContent && audioDataUri;
 
   return (
     <div className="w-full max-w-full flex flex-col md:flex-row gap-6 flex-grow">
@@ -200,7 +216,6 @@ export function AcademicModuleCreator() {
           <div className="space-y-2.5 mt-3 pt-3 border-t">
             <h3 className="text-sm sm:text-base font-semibold text-primary">Generation Steps:</h3>
             
-            {/* Module Idea */}
             <div className="flex items-center">
               {isLoading && currentStep.includes("ideas") ? ( <LoadingSpinner className="h-4 w-4 text-accent mr-2 shrink-0" /> ) 
                : ideaGenerated ? ( <CheckCircle className="h-4 w-4 text-green-500 mr-2 shrink-0" /> ) 
@@ -233,7 +248,6 @@ export function AcademicModuleCreator() {
               </Card>
             )}
 
-            {/* Image Generation */}
             {(isLoading || imageGeneratedState || (ideaGenerated && !error)) && (
             <div className="flex items-center">
               {isLoading && currentStep.includes("image") ? ( <LoadingSpinner className="h-4 w-4 text-accent mr-2 shrink-0" /> ) 
@@ -245,7 +259,6 @@ export function AcademicModuleCreator() {
             </div>
             )}
             
-            {/* Animation Code */}
             {(isLoading || codeGenerated || (imageGeneratedState && !error)) && (
             <div className="flex items-center">
               {isLoading && currentStep.includes("animation") ? ( <LoadingSpinner className="h-4 w-4 text-accent mr-2 shrink-0" /> ) 
@@ -257,7 +270,6 @@ export function AcademicModuleCreator() {
             </div>
             )}
 
-            {/* Audio Script */}
             {(isLoading || audioScriptGenerated || (codeGenerated && !error)) && (
             <div className="flex items-center">
               {isLoading && currentStep.includes("script") ? ( <LoadingSpinner className="h-4 w-4 text-accent mr-2 shrink-0" /> ) 
@@ -277,7 +289,6 @@ export function AcademicModuleCreator() {
               </Card>
             )}
 
-            {/* Audio Synthesis */}
             {(isLoading || audioSynthesized || (audioScriptGenerated && !error)) && (
             <div className="flex items-center">
               {isLoading && currentStep.includes("Synthesizing audio") ? ( <LoadingSpinner className="h-4 w-4 text-accent mr-2 shrink-0" /> ) 
@@ -295,7 +306,7 @@ export function AcademicModuleCreator() {
       {/* Right Panel - Module Preview */}
       <Card className="md:w-2/3 lg:w-3/4 flex-grow p-4 sm:p-6 shadow-lg md:max-h-[calc(100vh-120px)] flex flex-col">
         {(() => {
-          if (isClient && animationCode?.htmlContent) {
+          if (isPreviewReady) {
             return (
               <>
                 <div className="flex items-center justify-between mb-1.5 sm:mb-2 shrink-0">
@@ -303,7 +314,7 @@ export function AcademicModuleCreator() {
                     <Film className="mr-2 h-5 w-5 sm:h-6 sm:w-6 text-accent"/>
                     Generated Module Preview
                     </h3>
-                    {audioDataUri && (
+                    {audioDataUri && ( // Redundant check given isPreviewReady, but safe
                          <audio ref={audioRef} controls className="max-w-xs sm:max-w-sm md:max-w-md h-10">
                             Your browser does not support the audio element.
                          </audio>
@@ -311,7 +322,7 @@ export function AcademicModuleCreator() {
                 </div>
                 <div className="flex-grow w-full border rounded-md overflow-hidden shadow-md bg-background">
                   <iframe
-                    srcDoc={animationCode.htmlContent}
+                    srcDoc={animationCode!.htmlContent} // animationCode is checked by isPreviewReady
                     title="Generated Module Preview"
                     className="w-full h-full"
                     sandbox="allow-scripts allow-same-origin" 
@@ -334,7 +345,7 @@ export function AcademicModuleCreator() {
             <div className="flex flex-col items-center justify-center h-full border-2 border-dashed rounded-lg p-6 sm:p-12 text-center">
               <BookOpenText className="h-12 w-12 sm:h-16 sm:w-16 mb-3 sm:mb-4 text-primary" />
               <p className="text-base sm:text-xl font-semibold">Module Preview Area</p>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1">Enter a topic and click "Generate Full Module". The interactive module and audio will appear here.</p>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">Enter a topic and click "Generate Full Module". The interactive module and audio will appear here once all generation steps are complete.</p>
             </div>
           );
         })()}
@@ -342,3 +353,4 @@ export function AcademicModuleCreator() {
     </div>
   );
 }
+
