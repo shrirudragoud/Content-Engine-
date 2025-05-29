@@ -2,9 +2,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
+import Image from "next/image"; // Keep for potential future use, though not directly in right panel
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea } from "@/components/ui/textarea"; // Keep for potential future use
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 export function AcademicModuleCreator() {
   const [topic, setTopic] = useState<string>("");
   const [moduleIdea, setModuleIdea] = useState<GenerateModuleContentIdeaOutput | null>(null);
-  const [generatedImage, setGeneratedImage] = useState<GenerateImageOutput | null>(null);
+  const [generatedImage, setGeneratedImage] = useState<GenerateImageOutput | null>(null); // Still needed for the flow
   const [animationCode, setAnimationCode] = useState<GenerateAnimationCodeOutput | null>(null);
   
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -29,8 +29,14 @@ export function AcademicModuleCreator() {
   const { toast } = useToast();
 
   const [ideaGenerated, setIdeaGenerated] = useState(false);
-  const [imageGeneratedState, setImageGeneratedState] = useState(false); // Renamed to avoid conflict with component
+  const [imageGeneratedState, setImageGeneratedState] = useState(false);
   const [codeGenerated, setCodeGenerated] = useState(false);
+
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const handleCreateModule = async () => {
     if (!topic.trim()) {
@@ -51,6 +57,7 @@ export function AcademicModuleCreator() {
     setIdeaGenerated(false);
     setImageGeneratedState(false);
     setCodeGenerated(false);
+    setCurrentStep(""); // Reset current step
 
     try {
       setCurrentStep("Generating module ideas & image prompt...");
@@ -65,7 +72,7 @@ export function AcademicModuleCreator() {
       if (!ideaOutput.imagePrompt) throw new Error("Image prompt was not generated.");
       const imageOutput = await generateImage({ prompt: ideaOutput.imagePrompt });
       if (!imageOutput.imageDataUri) throw new Error("Image data URI is missing.");
-      setGeneratedImage(imageOutput);
+      setGeneratedImage(imageOutput); // Store for the animation code flow
       setImageGeneratedState(true);
       toast({ title: "Image Generated!", description: "Visual created successfully." });
 
@@ -98,7 +105,7 @@ export function AcademicModuleCreator() {
   };
   
   return (
-    <div className="w-full max-w-full flex flex-col md:flex-row gap-6 flex-grow"> {/* Adjusted max-width and flex-grow */}
+    <div className="w-full max-w-full flex flex-col md:flex-row gap-6 flex-grow">
       {/* Left Panel */}
       <Card className="md:w-2/5 lg:w-1/3 flex flex-col space-y-4 p-4 sm:p-6 shadow-lg h-fit md:max-h-[calc(100vh-120px)] md:overflow-y-auto">
         <div>
@@ -156,6 +163,19 @@ export function AcademicModuleCreator() {
                   <summary className="hover:text-accent text-xs">Image Prompt (Click to expand)</summary>
                   <p className="italic p-1 border rounded bg-background mt-1 text-gray-700">{moduleIdea.imagePrompt}</p>
                 </details>
+                 {generatedImage?.imageDataUri && isClient && (
+                  <div className="mt-2">
+                    <p className="text-xs font-medium">Idea Image:</p>
+                    <Image
+                      src={generatedImage.imageDataUri}
+                      alt={moduleIdea?.imagePrompt || "Generated image for module idea"}
+                      width={100}
+                      height={100}
+                      style={{objectFit:"contain", borderRadius: '4px', border: '1px solid hsl(var(--border))'}}
+                      data-ai-hint="educational illustration"
+                    />
+                  </div>
+                )}
                 <p><strong>Concept:</strong> {moduleIdea.animationConcept}</p>
                 <p><strong>Keywords:</strong> {moduleIdea.suggestedKeywords.join(", ")}</p>
               </Card>
@@ -194,65 +214,46 @@ export function AcademicModuleCreator() {
         )}
       </Card>
 
-      {/* Right Panel */}
-      <Card className="md:w-3/5 lg:w-2/3 flex-grow p-4 sm:p-6 shadow-lg md:max-h-[calc(100vh-120px)] overflow-y-auto">
-        {!generatedImage && !animationCode && !isLoading && (
-          <div className="flex flex-col items-center justify-center h-full border-2 border-dashed rounded-lg p-6 sm:p-12 text-center">
-            <BookOpenText className="h-12 w-12 sm:h-16 sm:w-16 mb-3 sm:mb-4 text-primary" />
-            <p className="text-base sm:text-xl font-semibold">Module Preview Area</p>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1">Enter a topic and generate a module. The image, animation, and code will appear here.</p>
-          </div>
-        )}
-        
-        {isLoading && !generatedImage && !animationCode && (
-           <div className="flex flex-col items-center justify-center h-full">
-            <LoadingSpinner className="h-10 w-10 sm:h-12 sm:w-12 text-primary" />
-            <p className="mt-3 sm:mt-4 text-sm sm:text-lg text-muted-foreground">{currentStep || "Generating your module..."}</p>
-          </div>
-        )}
-
-        <div className="space-y-4 sm:space-y-6">
-          {generatedImage?.imageDataUri && (
-            <div>
-              <h3 className="text-base sm:text-lg font-semibold mb-1.5 sm:mb-2 flex items-center"><ImageIcon className="mr-2 h-5 w-5 sm:h-6 sm:w-6 text-accent"/>Generated Image</h3>
-              <div className="relative aspect-video w-full max-w-md mx-auto rounded-md overflow-hidden border-2 border-primary shadow-md bg-muted/20">
-                <Image
-                  src={generatedImage.imageDataUri}
-                  alt={moduleIdea?.imagePrompt || "Generated image for module"}
-                  fill={true}
-                  style={{objectFit:"contain"}}
-                  data-ai-hint="educational illustration"
-                />
-              </div>
-            </div>
-          )}
-
-          {animationCode?.htmlContent && (
-            <>
-              <div>
-                <h3 className="text-base sm:text-lg font-semibold mb-1.5 sm:mb-2 flex items-center"><Film className="mr-2 h-5 w-5 sm:h-6 sm:w-6 text-accent"/>Animation Preview</h3>
-                <div className="aspect-video w-full border rounded-md overflow-hidden shadow-md bg-background">
+      {/* Right Panel - Module Preview */}
+      <Card className="md:w-3/5 lg:w-2/3 flex-grow p-4 sm:p-6 shadow-lg md:max-h-[calc(100vh-120px)] flex flex-col">
+        {(() => {
+          if (isClient && animationCode?.htmlContent) {
+            return (
+              <>
+                <h3 className="text-base sm:text-lg font-semibold mb-1.5 sm:mb-2 flex items-center shrink-0">
+                  <Film className="mr-2 h-5 w-5 sm:h-6 sm:w-6 text-accent"/>
+                  Generated Module Preview
+                </h3>
+                <div className="flex-grow w-full border rounded-md overflow-hidden shadow-md bg-background">
                   <iframe
                     srcDoc={animationCode.htmlContent}
-                    title="Animation Preview"
+                    title="Generated Module Preview"
                     className="w-full h-full"
                     sandbox="allow-scripts allow-same-origin" 
                   />
                 </div>
+              </>
+            );
+          }
+          if (isLoading) {
+            return (
+              <div className="flex flex-col items-center justify-center h-full">
+                <LoadingSpinner className="h-10 w-10 sm:h-12 sm:w-12 text-primary" />
+                <p className="mt-3 sm:mt-4 text-sm sm:text-lg text-muted-foreground">
+                  {currentStep || "Generating your module..."}
+                </p>
               </div>
-              <div>
-                <h3 className="text-base sm:text-lg font-semibold mb-1.5 sm:mb-2 flex items-center"><Code2Icon className="mr-2 h-5 w-5 sm:h-6 sm:w-6 text-accent"/>Generated Animation Code</h3>
-                <Textarea
-                  id="animation-code"
-                  value={animationCode.htmlContent}
-                  readOnly
-                  rows={12}
-                  className="w-full text-xs font-mono bg-muted/20 border-input"
-                />
-              </div>
-            </>
-          )}
-        </div>
+            );
+          }
+          // Fallback to placeholder
+          return (
+            <div className="flex flex-col items-center justify-center h-full border-2 border-dashed rounded-lg p-6 sm:p-12 text-center">
+              <BookOpenText className="h-12 w-12 sm:h-16 sm:w-16 mb-3 sm:mb-4 text-primary" />
+              <p className="text-base sm:text-xl font-semibold">Module Preview Area</p>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">Enter a topic and click "Generate Module". The interactive module will appear here.</p>
+            </div>
+          );
+        })()}
       </Card>
     </div>
   );
