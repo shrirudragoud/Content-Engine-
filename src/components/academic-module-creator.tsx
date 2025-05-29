@@ -587,5 +587,3 @@ export function AcademicModuleCreator() {
     </div>
   );
 }
-
-```
