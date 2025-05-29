@@ -82,12 +82,11 @@ export function AcademicModuleCreator() {
       console.log("Failed Audio Source (first 200 chars):", currentAudioSrc ? currentAudioSrc.substring(0, 200) + (currentAudioSrc.length > 200 ? "..." : "") : "N/A");
       if (currentAudioSrc && currentAudioSrc.startsWith("data:")) {
         // console.log("Full Failed Audio Data URI (inspect in console):");
-        // console.log(currentAudioSrc); // Avoid logging potentially very long strings by default
+        // console.log(currentAudioSrc); 
       }
 
       if (mediaError) {
         const mediaErrorDetails: Record<string, any> = { code: mediaError.code, message: mediaError.message };
-        // Iterate over own properties of MediaError that are not functions
         for (const key in mediaError) {
           if (Object.prototype.hasOwnProperty.call(mediaError, key) && typeof (mediaError as any)[key] !== 'function') {
             mediaErrorDetails[key] = (mediaError as any)[key];
@@ -96,16 +95,16 @@ export function AcademicModuleCreator() {
         console.log("MediaError Object Details:", mediaErrorDetails);
 
         switch (mediaError.code) {
-          case mediaError.MEDIA_ERR_ABORTED: errorMessage = "Audio playback was aborted."; break;
-          case mediaError.MEDIA_ERR_NETWORK: errorMessage = "A network error caused audio download to fail."; break;
-          case mediaError.MEDIA_ERR_DECODE: errorMessage = "Audio playback failed: The audio data could not be decoded (corrupted or unparsable)."; break;
-          case mediaError.MEDIA_ERR_SRC_NOT_SUPPORTED: errorMessage = "Audio playback failed: The audio format (e.g., codec or container) provided by the AI is not supported by your browser or the source URI is invalid. Please check the console for the audio data URI's MIME type and full MediaError details."; break;
+          case mediaError.MEDIA_ERR_ABORTED: errorMessage = "Audio playback was aborted by the user or system."; break;
+          case mediaError.MEDIA_ERR_NETWORK: errorMessage = "A network error caused audio download to fail part-way."; break;
+          case mediaError.MEDIA_ERR_DECODE: errorMessage = "Audio playback failed: The audio data could not be decoded. It might be corrupted or in an unparsable format."; break;
+          case mediaError.MEDIA_ERR_SRC_NOT_SUPPORTED: errorMessage = "Audio playback failed: The audio format (e.g., codec or container) provided by the AI is not supported by your browser, or the source URI is invalid/empty. Please check the console for the audio data URI's MIME type and full MediaError details."; break;
           default: errorMessage = `Audio playback failed with an unknown error code: ${mediaError.code}. Refer to MediaError details in console.`;
         }
       } else {
         console.log("MediaError object was null or undefined at the time of error handling.");
       }
-      console.error("Audio Element Error:", errorMessage, mediaError); // Log the error object itself for more detail
+      console.error("Audio Element Error:", errorMessage, mediaError); 
       toast({ title: "Audio Playback Error", description: errorMessage, variant: "destructive" });
     };
     
@@ -113,7 +112,7 @@ export function AcademicModuleCreator() {
 
     const currentModuleData = generatedModulesData[currentDisplayModuleIndex];
     if (currentModuleData?.audioDataUri) {
-      console.log("AcademicModuleCreator: Setting audio source for module:", currentModuleData.plannedModule.title);
+      console.log("AcademicModuleCreator: Setting audio source for module:", currentModuleData.plannedModule.title, ` (URI starts with: ${currentModuleData.audioDataUri.substring(0,100)}...)`);
       if (audioElement.src !== currentModuleData.audioDataUri) {
         audioElement.src = currentModuleData.audioDataUri;
         audioElement.load(); 
@@ -127,7 +126,7 @@ export function AcademicModuleCreator() {
           } else if (err.name === 'NotSupportedError' && !audioElement.error) { 
             toast({ title: "Audio Playback Error", description: "The browser reported it cannot play this audio format, or the audio source is invalid/empty. Check console for details.", variant: "destructive" });
           } else if (err.name !== 'NotSupportedError' && err.name !== 'AbortError' && !audioElement.error) { 
-             toast({ title: "Audio Playback Issue", description: `Could not play audio: ${err.message || 'Unknown error'}.`, variant: "destructive" });
+             toast({ title: "Audio Playback Issue", description: `Could not play audio: ${err.message || 'Unknown error'}. Ensure the audio source is valid.`, variant: "destructive" });
           }
         });
       }
@@ -181,13 +180,13 @@ export function AcademicModuleCreator() {
         throw new Error("Module plan is empty or invalid.");
       }
       
-      const newGeneratedModulesData: GeneratedModuleData[] = [];
+      const newGeneratedModulesDataAccumulator: GeneratedModuleData[] = [];
 
       for (let i = 0; i < planOutput.plannedModules.length; i++) {
         setCurrentGeneratingModuleIndex(i);
         const currentPlannedModule = planOutput.plannedModules[i];
         const moduleIdentifier = `Module ${i + 1} of ${planOutput.plannedModules.length}: "${currentPlannedModule.title}"`;
-        setGenerationErrorForCurrentModule(null); // Reset error for the new module
+        setGenerationErrorForCurrentModule(null); 
 
         let moduleIdeaOutput: GenerateModuleContentIdeaOutput;
         let imageOutput: GenerateImageOutput;
@@ -220,8 +219,12 @@ export function AcademicModuleCreator() {
           setCurrentGeneratingSubStepId('script');
           setCurrentStepText(`Generating audio script for ${moduleIdentifier}...`);
           const scriptInput: GenerateAudioScriptInput = { 
-              moduleTitle: moduleIdeaOutput.moduleTitle,
-              animationConcept: moduleIdeaOutput.animationConcept
+              currentModuleTitle: moduleIdeaOutput.moduleTitle,
+              currentModuleConcept: moduleIdeaOutput.animationConcept,
+              overallTopic: planOutput.overallTopic,
+              moduleIndex: i,
+              totalModulesInPlan: planOutput.plannedModules.length,
+              previousModuleConcept: i > 0 ? planOutput.plannedModules[i-1].concept : undefined,
           };
           scriptOutput = await generateAudioScript(scriptInput);
           if (!scriptOutput?.audioScript) throw new Error("Audio script was not generated.");
@@ -232,20 +235,19 @@ export function AcademicModuleCreator() {
           speechOutput = await generateSpeechFromText(speechInput);
           if (!speechOutput?.audioDataUri) throw new Error("Audio data URI is missing from TTS flow output.");
 
-          newGeneratedModulesData.push({
-            id: currentPlannedModule.title, // Assuming title is unique enough for key
+          const completedModuleData = {
+            id: currentPlannedModule.title, 
             plannedModule: currentPlannedModule,
             moduleIdea: moduleIdeaOutput,
             generatedImage: imageOutput,
             animationCode: codeOutput,
             audioScript: scriptOutput,
             audioDataUri: speechOutput.audioDataUri,
-          });
-          setGeneratedModulesData([...newGeneratedModulesData]); // Update state to reflect new module
-          
-          if (newGeneratedModulesData.length === 1) { // If this is the first module generated
-             setCurrentDisplayModuleIndex(0); // Display it immediately
-          }
+          };
+
+          newGeneratedModulesDataAccumulator.push(completedModuleData);
+          setGeneratedModulesData([...newGeneratedModulesDataAccumulator]); 
+          setCurrentDisplayModuleIndex(i); // Auto-switch to the newly completed module
 
           toast({ title: `${moduleIdentifier}: Fully Generated!`, description: "Module ready for preview."});
 
@@ -254,8 +256,6 @@ export function AcademicModuleCreator() {
             setGenerationErrorForCurrentModule(`Failed during '${currentGeneratingSubStepId || "generation"}' for ${moduleIdentifier}: ${errorMessage}`);
             toast({ title: `Error in ${moduleIdentifier}`, description: errorMessage, variant: "destructive" });
             console.error(`Error generating ${moduleIdentifier}:`, moduleErr);
-            // Decide if we want to stop all generation or allow continuing to next planned module
-            // For now, we stop.
             throw new Error(`Generation failed for ${moduleIdentifier}. ${errorMessage}`); 
         }
       }
@@ -263,7 +263,7 @@ export function AcademicModuleCreator() {
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred during the planning or generation process.";
-      setError(errorMessage); // This is for global errors like plan failing
+      setError(errorMessage); 
       setCurrentStepText(`Module generation process encountered an error. Check details.`);
       toast({ title: "Error Creating Modules", description: errorMessage, variant: "destructive" });
       console.error("Error creating modules:", err);
@@ -281,7 +281,6 @@ export function AcademicModuleCreator() {
   let completedSubStepsForCurrentModuleGeneration = 0;
   if (isLoading && currentGeneratingModuleIndex !== null && currentGeneratingSubStepId) {
       const currentPlannedModule = modulePlan?.plannedModules[currentGeneratingModuleIndex];
-      // Check if the module currently being generated is already in generatedModulesData (meaning it completed in a previous iteration of this thought process if an error occurred later)
       if (currentPlannedModule && generatedModulesData.find(m => m.id === currentPlannedModule.title)) {
         completedSubStepsForCurrentModuleGeneration = subStageIds.length;
       } else {
@@ -299,16 +298,15 @@ export function AcademicModuleCreator() {
       (completedSubStepsForCurrentModuleGeneration / subStageIds.length) * (100 / modulePlan.plannedModules.length)
       : 0)
   )
-  : 0;
+  : (isLoading && currentGeneratingSubStepId === 'plan' ? 5 : 0); // Small progress if only planning
 
   const getStageStatus = (stageId: string, forModuleIndex: number | null) => {
-    if (forModuleIndex === null) return 'pending'; // Not generating anything specific yet
+    if (forModuleIndex === null) return 'pending'; 
 
     const targetModuleData = generatedModulesData.find(m => m.plannedModule.title === modulePlan?.plannedModules[forModuleIndex]?.title);
 
-    if (targetModuleData) return 'completed'; // If module is in generated data, all its steps are complete
+    if (targetModuleData) return 'completed'; 
 
-    // If we are currently generating this specific module
     if (isLoading && currentGeneratingModuleIndex === forModuleIndex) {
       if (generationErrorForCurrentModule && currentGeneratingSubStepId === stageId) return 'failed';
       
@@ -319,9 +317,8 @@ export function AcademicModuleCreator() {
       if (currentSubStepOrder === stageOrder && !generationErrorForCurrentModule) return 'processing';
     }
     
-    // If this module is before the one currently being generated
     if (currentGeneratingModuleIndex !== null && forModuleIndex < currentGeneratingModuleIndex) {
-        return 'completed'; // Should have been completed if we are past it.
+        return 'completed'; 
     }
 
     return 'pending';
@@ -330,34 +327,37 @@ export function AcademicModuleCreator() {
   const getPlanStageStatus = () => {
     if (!isLoading && modulePlan) return 'completed';
     if (isLoading && currentGeneratingSubStepId === 'plan') return 'processing';
-    if (modulePlan || (isLoading && currentGeneratingSubStepId !== 'plan')) return 'completed'; // Plan is done if we are on sub-steps or plan exists
-    if (error && !modulePlan) return 'failed'; // If global error happened before plan was set
+    if (modulePlan || (isLoading && currentGeneratingSubStepId !== 'plan' && currentGeneratingSubStepId !== null)) return 'completed'; 
+    if (error && !modulePlan && !isLoading) return 'failed'; 
     return 'pending';
   }
 
-  const currentModuleDetails = generatedModulesData[currentDisplayModuleIndex];
-  const currentModuleIdea = currentModuleDetails?.moduleIdea;
-  const currentModuleImage = currentModuleDetails?.generatedImage;
-  const currentModuleAudioScript = currentModuleDetails?.audioScript;
-
+  const currentModuleDetailsForLeftPanel = 
+    isLoading && currentGeneratingModuleIndex !== null && modulePlan?.plannedModules[currentGeneratingModuleIndex] ? 
+    (generatedModulesData.find(m => m.plannedModule.title === modulePlan.plannedModules[currentGeneratingModuleIndex!].title) || null) // Use generated if available (e.g. error on next module)
+    : (generatedModulesData[currentDisplayModuleIndex] || null); // Default to display module if not loading
+  
+  const ideaToDisplay = currentModuleDetailsForLeftPanel?.moduleIdea;
+  const imageToDisplay = currentModuleDetailsForLeftPanel?.generatedImage;
+  const scriptToDisplay = currentModuleDetailsForLeftPanel?.audioScript;
 
   return (
     <div className="w-full max-w-full flex flex-col md:flex-row gap-6 flex-grow">
       {/* Left Panel */}
       <Card className="md:w-1/4 lg:w-1/5 flex flex-col p-4 sm:p-6 shadow-lg h-fit md:max-h-[calc(100vh-120px)] md:overflow-y-auto">
-        {(isLoading || generatedModulesData.length > 0 || error ) && (
+        {(isLoading || generatedModulesData.length > 0 || error || modulePlan ) && (
           <div className="mb-6">
             {isLoading && currentStepText && (
               <p className="text-sm font-semibold mb-2 text-primary">{currentStepText}</p>
             )}
-            {!isLoading && error && ( // Show global error if not loading
-              <p className="text-sm font-semibold mb-2 text-destructive">{currentStepText}</p>
+            {!isLoading && error && ( 
+              <p className="text-sm font-semibold mb-2 text-destructive">{currentStepText || "Process ended with an error."}</p>
             )}
-             {!isLoading && !error && generatedModulesData.length > 0 && modulePlan && generatedModulesData.length === modulePlan.plannedModules.length && (
+             {!isLoading && !error && modulePlan && generatedModulesData.length === modulePlan.plannedModules.length && (
               <p className="text-sm font-semibold mb-2 text-green-600">{currentStepText || "All modules generated."}</p>
             )}
 
-            {(isLoading || (modulePlan && generatedModulesData.length < modulePlan.plannedModules.length)) && modulePlan && (
+            {(isLoading || (modulePlan && generatedModulesData.length < modulePlan.plannedModules.length && !error)) && modulePlan && (
                  <Progress value={overallProgressForLeftPanel} className="w-full h-2 mb-4" />
             )}
             
@@ -369,14 +369,16 @@ export function AcademicModuleCreator() {
 
                 if (isPlanStage) {
                   status = getPlanStageStatus();
-                } else if (currentGeneratingModuleIndex !== null) { // Only show sub-stage status if a module is being processed or planned
+                } else if (currentGeneratingModuleIndex !== null && modulePlan) { 
                   status = getStageStatus(stage.id, currentGeneratingModuleIndex);
-                  if (isLoading && modulePlan && currentGeneratingModuleIndex !== null) {
-                    // stageLabel = `${stage.label} (for M${currentGeneratingModuleIndex + 1})`;
+                  if (isLoading && currentGeneratingModuleIndex !== null) {
+                     // stageLabel = `${stage.label} (M${currentGeneratingModuleIndex + 1})`;
                   }
                 } else if (generatedModulesData.length > 0 && modulePlan && currentDisplayModuleIndex < generatedModulesData.length) {
-                   // If not loading, show status for the displayed module (all should be complete)
                    status = 'completed';
+                } else if (!isLoading && error && currentGeneratingModuleIndex !== null && modulePlan){
+                    // If there was an error, show status for the module that was being generated
+                    status = getStageStatus(stage.id, currentGeneratingModuleIndex);
                 }
 
 
@@ -408,29 +410,33 @@ export function AcademicModuleCreator() {
                             <p><strong>Overall Topic:</strong> {modulePlan.overallTopic}</p>
                             {modulePlan.plannedModules.map((mod, idx) => (
                                 <div key={idx} className="p-1 border-b last:border-b-0">
-                                    <p className={cn("font-semibold", idx === currentGeneratingModuleIndex && isLoading && "text-primary", idx === currentDisplayModuleIndex && !isLoading && "text-primary")}>Module {idx + 1}: {mod.title}</p>
+                                    <p className={cn("font-semibold", 
+                                        idx === currentGeneratingModuleIndex && isLoading && "text-primary", 
+                                        idx === currentDisplayModuleIndex && !isLoading && generatedModulesData.length > 0 && "text-primary")}>
+                                        Module {idx + 1}: {mod.title}
+                                    </p>
                                     <p className="text-gray-700 text-xs">{mod.concept}</p>
                                 </div>
                             ))}
                           </Card>
                         </details>
                       )}
-                      {stage.id === 'idea' && currentModuleIdea && (generatedModulesData[currentDisplayModuleIndex]?.moduleIdea || (isLoading && currentGeneratingModuleIndex !== null && getStageStatus('idea', currentGeneratingModuleIndex) !== 'pending' )) && (
+                      {stage.id === 'idea' && ideaToDisplay && (getStageStatus('idea', isLoading ? currentGeneratingModuleIndex : currentDisplayModuleIndex) !== 'pending' ) && (
                         <details className="mt-1 group text-xs">
                           <summary className="text-muted-foreground hover:text-accent list-none py-0.5 flex items-center cursor-pointer">
                             <ChevronRight className="h-3 w-3 mr-1 group-open:rotate-90 transition-transform shrink-0" />
                             <span>View Module Idea Details</span>
                           </summary>
                           <Card className="p-2 bg-muted/30 space-y-1 border-l-2 border-accent mt-1">
-                            <p><strong>Title:</strong> {currentModuleIdea.moduleTitle}</p>
+                            <p><strong>Title:</strong> {ideaToDisplay.moduleTitle}</p>
                             <details className="cursor-pointer">
                               <summary className="hover:text-accent">Image Prompt & Image</summary>
-                              <p className="italic p-1 border rounded bg-background mt-0.5 text-gray-700">{currentModuleIdea.imagePrompt}</p>
-                              {currentModuleImage?.imageDataUri && isClient && (
+                              <p className="italic p-1 border rounded bg-background mt-0.5 text-gray-700">{ideaToDisplay.imagePrompt}</p>
+                              {imageToDisplay?.imageDataUri && isClient && (
                                 <div className="mt-1">
                                   <Image
-                                    src={currentModuleImage.imageDataUri}
-                                    alt={currentModuleIdea?.imagePrompt || "Generated image for module idea"}
+                                    src={imageToDisplay.imageDataUri}
+                                    alt={ideaToDisplay?.imagePrompt || "Generated image for module idea"}
                                     width={80}
                                     height={80}
                                     style={{objectFit:"contain", borderRadius: '4px', border: '1px solid hsl(var(--border))'}}
@@ -439,19 +445,19 @@ export function AcademicModuleCreator() {
                                 </div>
                               )}
                             </details>
-                            <p><strong>Concept:</strong> {currentModuleIdea.animationConcept}</p>
-                            <p><strong>Keywords:</strong> {currentModuleIdea.suggestedKeywords.join(", ")}</p>
+                            <p><strong>Concept:</strong> {ideaToDisplay.animationConcept}</p>
+                            <p><strong>Keywords:</strong> {ideaToDisplay.suggestedKeywords.join(", ")}</p>
                           </Card>
                         </details>
                       )}
-                      {stage.id === 'script' && currentModuleAudioScript && (generatedModulesData[currentDisplayModuleIndex]?.audioScript || (isLoading && currentGeneratingModuleIndex !== null && getStageStatus('script', currentGeneratingModuleIndex) !== 'pending' )) &&(
+                      {stage.id === 'script' && scriptToDisplay && (getStageStatus('script', isLoading ? currentGeneratingModuleIndex : currentDisplayModuleIndex) !== 'pending' ) &&(
                         <details className="mt-1 group text-xs">
                           <summary className="text-muted-foreground hover:text-accent list-none py-0.5 flex items-center cursor-pointer">
                             <ChevronRight className="h-3 w-3 mr-1 group-open:rotate-90 transition-transform shrink-0" />
                             <span>View Audio Script</span>
                           </summary>
                           <Card className="p-2 bg-muted/30 space-y-1 border-l-2 border-accent mt-1">
-                            <p className="italic p-1 border rounded bg-background mt-0.5 text-gray-700 whitespace-pre-wrap">{currentModuleAudioScript.audioScript}</p>
+                            <p className="italic p-1 border rounded bg-background mt-0.5 text-gray-700 whitespace-pre-wrap">{scriptToDisplay.audioScript}</p>
                           </Card>
                         </details>
                       )}
@@ -463,7 +469,7 @@ export function AcademicModuleCreator() {
           </div>
         )}
 
-        <div className={cn("mt-auto pt-6", (isLoading || generatedModulesData.length > 0 || error) && "border-t")}>
+        <div className={cn("mt-auto pt-6", (isLoading || generatedModulesData.length > 0 || error || modulePlan) && "border-t")}>
           <Label htmlFor="topic" className="text-base sm:text-lg font-semibold">Academic Topic</Label>
           <Input
             id="topic"
@@ -515,7 +521,7 @@ export function AcademicModuleCreator() {
                      {`Module ${currentDisplayModuleIndex + 1}: ${currentModuleToPreview.plannedModule.title}`}
                     </h3>
                      <audio 
-                        key={currentModuleToPreview.audioDataUri} // Keyed to re-render if URI changes
+                        key={currentModuleToPreview.audioDataUri} 
                         ref={audioRef} 
                         controls 
                         className="max-w-xs sm:max-w-sm md:max-w-md h-10"
@@ -542,8 +548,8 @@ export function AcademicModuleCreator() {
                       <ChevronLeft className="mr-1 h-4 w-4" /> Previous Module
                     </Button>
                     <span className="text-sm text-muted-foreground">
-                      Viewing Module {currentDisplayModuleIndex + 1} of {generatedModulesData.length} 
-                      {isLoading && generatedModulesData.length < modulePlan.plannedModules.length ? ` (Generating ${modulePlan.plannedModules.length - generatedModulesData.length} more...)` : (!isLoading && modulePlan && generatedModulesData.length < modulePlan.plannedModules.length ? ' (Some modules failed)' : '')}
+                      Viewing Module {currentDisplayModuleIndex + 1} of {generatedModulesData.length > 0 ? generatedModulesData.length : modulePlan.plannedModules.length} 
+                      {isLoading && modulePlan && generatedModulesData.length < modulePlan.plannedModules.length ? ` (Generating ${modulePlan.plannedModules.length - generatedModulesData.length} more...)` : (!isLoading && modulePlan && generatedModulesData.length < modulePlan.plannedModules.length ? ' (Some modules failed)' : '')}
                     </span>
                     <Button 
                       onClick={() => setCurrentDisplayModuleIndex(prev => Math.min(generatedModulesData.length - 1, prev + 1))}
@@ -582,3 +588,4 @@ export function AcademicModuleCreator() {
   );
 }
 
+```
