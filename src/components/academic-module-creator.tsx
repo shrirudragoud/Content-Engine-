@@ -113,7 +113,6 @@ export function AcademicModuleCreator() {
           } else if (err.name !== 'NotSupportedError' && err.name !== 'AbortError' && !audioElement.error) { 
              toast({ title: "Audio Playback Issue", description: `Could not play audio: ${err.message || 'Unknown error'}.`, variant: "destructive" });
           }
-          // The audioElement.error listener will handle MediaError specific issues (like decode, network, src_not_supported after load attempt)
         });
       }
     } else {
@@ -214,7 +213,6 @@ export function AcademicModuleCreator() {
       console.error("Error creating module:", err);
     } finally {
       setIsLoading(false);
-      // currentStepText is set to "All steps completed!" on success or left as the failing step on error.
     }
   };
   
@@ -237,26 +235,23 @@ export function AcademicModuleCreator() {
     if (stageId === 'synthesis' && audioSynthesized) return 'completed';
     
     const currentProcessingStage = STAGES.find(s => currentStepText.toLowerCase().includes(s.processingText.toLowerCase()));
-    if (isLoading && currentProcessingStage?.id === stageId && !failedStep) return 'processing'; // Only processing if not failed
+    if (isLoading && currentProcessingStage?.id === stageId && !failedStep) return 'processing';
     
-    // If a previous step failed, subsequent steps are effectively pending/blocked
     if (failedStep) {
         const failedStageIndex = STAGES.findIndex(s => s.id === failedStep);
         const currentStageIndex = STAGES.findIndex(s => s.id === stageId);
-        if (currentStageIndex > failedStageIndex) return 'pending'; // Or 'blocked', visually 'pending' is fine
+        if (currentStageIndex > failedStageIndex) return 'pending';
     }
     
-    // If loading but this step hasn't started and no prior step failed it's pending
     if (isLoading && !failedStep) {
       const currentStageIndex = STAGES.findIndex(s => s.id === stageId);
       const processingStageIndex = currentProcessingStage ? STAGES.findIndex(s => s.id === currentProcessingStage.id) : -1;
       if (currentStageIndex > processingStageIndex) return 'pending';
     }
 
-    // Before generation starts, all are pending unless completed (which they aren't)
     if (!isLoading && completedStepCount < STAGES.length && STAGES.findIndex(s => s.id === stageId) >= completedStepCount) return 'pending';
 
-    return 'pending'; // Default if none of the above
+    return 'pending';
   };
 
 
@@ -264,12 +259,9 @@ export function AcademicModuleCreator() {
     <div className="w-full max-w-full flex flex-col md:flex-row gap-6 flex-grow">
       {/* Left Panel */}
       <Card className="md:w-1/4 lg:w-1/5 flex flex-col p-4 sm:p-6 shadow-lg h-fit md:max-h-[calc(100vh-120px)] md:overflow-y-auto">
-        {/* Progress Section */}
         {(isLoading || completedStepCount > 0 || error) && (
           <div className="mb-6">
-             {/* Overall status header removed based on user request */}
-            {isLoading && <p className="text-xs text-muted-foreground mb-2">{currentStepText}</p>}
-            
+            {/* currentStepText display removed from here */}
             <Progress value={progressPercentage} className="w-full h-2 mb-4" />
             
             <div className="space-y-2.5">
@@ -290,7 +282,6 @@ export function AcademicModuleCreator() {
                   <div key={stage.id} className="flex items-start">
                     <IconComponent className={cn("h-4 w-4 mt-0.5 mr-2 shrink-0", iconColor, status === 'processing' && "animate-spin")} />
                     <div className="flex-grow">
-                       {/* Individual status suffixes like "(Processing...)" removed based on user request */}
                       <span className={cn("text-xs sm:text-sm", status === 'completed' && "font-medium", status==='failed' && "text-destructive font-medium")}>
                         {stage.label}
                       </span>
@@ -342,7 +333,6 @@ export function AcademicModuleCreator() {
           </div>
         )}
 
-        {/* Input Section - pushed to bottom if space allows, or flows naturally */}
         <div className={cn("mt-auto pt-6", (isLoading || completedStepCount > 0 || error) && "border-t")}>
           <Label htmlFor="topic" className="text-base sm:text-lg font-semibold">Academic Topic</Label>
           <Input
