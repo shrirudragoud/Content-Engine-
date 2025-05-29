@@ -107,14 +107,14 @@ export function AcademicModuleCreator() {
   return (
     <div className="w-full max-w-full flex flex-col md:flex-row gap-6 flex-grow">
       {/* Left Panel */}
-      <Card className="md:w-2/5 lg:w-1/3 flex flex-col space-y-4 p-4 sm:p-6 shadow-lg h-fit md:max-h-[calc(100vh-120px)] md:overflow-y-auto">
+      <Card className="md:w-1/3 lg:w-1/4 flex flex-col space-y-4 p-4 sm:p-6 shadow-lg h-fit md:max-h-[calc(100vh-120px)] md:overflow-y-auto">
         <div>
           <Label htmlFor="topic" className="text-base sm:text-lg font-semibold">Academic Topic</Label>
           <Input
             id="topic"
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            placeholder="e.g., Photosynthesis, The Water Cycle"
+            placeholder="e.g., Photosynthesis"
             className="text-sm sm:text-base mt-1"
             disabled={isLoading}
           />
@@ -215,7 +215,7 @@ export function AcademicModuleCreator() {
       </Card>
 
       {/* Right Panel - Module Preview */}
-      <Card className="md:w-3/5 lg:w-2/3 flex-grow p-4 sm:p-6 shadow-lg md:max-h-[calc(100vh-120px)] flex flex-col">
+      <Card className="md:w-2/3 lg:w-3/4 flex-grow p-4 sm:p-6 shadow-lg md:max-h-[calc(100vh-120px)] flex flex-col">
         {(() => {
           if (isClient && animationCode?.htmlContent) {
             return (
