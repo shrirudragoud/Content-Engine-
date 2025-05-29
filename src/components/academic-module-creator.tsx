@@ -166,8 +166,8 @@ export function AcademicModuleCreator() {
                 <Image
                   src={generatedImage.imageDataUri}
                   alt={moduleIdea?.imagePrompt || "Generated image for module"}
-                  layout="fill"
-                  objectFit="contain"
+                  fill={true}
+                  style={{objectFit:"contain"}}
                   data-ai-hint="educational illustration"
                 />
               </div>
@@ -186,7 +186,7 @@ export function AcademicModuleCreator() {
                   srcDoc={animationCode.htmlContent}
                   title="Animation Preview"
                   className="w-full h-full"
-                  sandbox="allow-scripts allow-same-origin" // allow-same-origin is needed for embedded base64 images to load in some browsers
+                  sandbox="allow-scripts allow-same-origin" 
                 />
               </div>
                <div>
