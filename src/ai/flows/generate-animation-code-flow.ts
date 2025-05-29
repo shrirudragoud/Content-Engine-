@@ -51,7 +51,7 @@ Core Educational Concept: {{{animationConcept}}}
 Suggested Keywords for Style/Interaction: {{#each suggestedKeywords}}{{{this}}}{{#unless @last}}, {{/unless}}{{/each}}
 
 **Key Image Resource:**
-You will be provided with a main image. In the HTML you generate, you MUST use the exact placeholder \`src="${IMAGE_PLACEHOLDER_SRC}"\` for this image's \`<img>\` tag. This placeholder will be automatically replaced with the actual image data URI. This image should be used meaningfully, perhaps in the introduction, the Visual Demo tab, or as a general branding element.
+You will be provided with a main image. In the HTML you generate, you MUST use the exact placeholder \`src="${IMAGE_PLACEHOLDER_SRC}"\` for this image's \`<img>\` tag. This placeholder will be automatically replaced with the actual image data URI.
 
 **Core Requirements for the HTML Output:**
 
@@ -62,18 +62,18 @@ You will be provided with a main image. In the HTML you generate, you MUST use t
 
 2.  **Tabbed Layout (Mandatory):**
     *   Implement a clear tabbed navigation system.
-    *   There must be exactly FIVE tabs with the following titles and purposes:
-        *   **"Introduction"**: A brief overview of the module topic (\`{{{moduleTitle}}}\`) and what the user will learn. Could feature the main image.
-        *   **"📚 Theory"**: Explanation of core concepts related to \`{{{animationConcept}}}\`. Use clear headings, paragraphs, and lists.
-        *   **"🃏 Flashcards"**: Interactive flashcards for at least 8 key terms/definitions related to the topic.
-            *   Functionality: Cards should flip on click/tap. Implement a "Shuffle" button.
-            *   Animation: Smooth flip animations for the cards.
-        *   **"📐 Visual Demo"**: An interactive simulation, diagram, or activity to visually explain a key aspect of \`{{{animationConcept}}}\`.
-            *   Interactivity: If applicable, use elements like sliders, buttons that trigger changes, or an interactive diagram. This is where the main provided image (\`src="${IMAGE_PLACEHOLDER_SRC}"\`) could be central.
+    *   There must be exactly THREE tabs with the following titles and purposes:
+        *   **"📚 Theory"**:
+            *   **Content**: This tab serves as both the introduction and the main theory section. It should start with a brief overview of the module topic (\`{{{moduleTitle}}}\`) and what the user will learn. Then, it should explain the core concepts related to \`{{{animationConcept}}}\`. Use clear headings, paragraphs, and lists.
+            *   **Layout**: This tab MUST have a two-column layout. The main image (using \`src="${IMAGE_PLACEHOLDER_SRC}"\`) should be displayed in the left column. The right column should contain the introductory and theoretical text.
+        *   **"🃏 Flashcards"**:
+            *   **Content**: Interactive flashcards for at least 8 key terms/definitions related to the topic (\`{{{animationConcept}}}\`).
+            *   **Functionality**: Cards MUST flip on click/tap to reveal the answer. Implement a "Shuffle" button that randomizes the order of the flashcards. Ensure the JavaScript for flipping and shuffling is fully functional.
+            *   **Animation**: Smooth flip animations for the cards.
+        *   **"📐 Visual Demo"**:
+            *   **Content**: An interactive simulation, diagram, or activity to visually explain a key aspect of \`{{{animationConcept}}}\`. This is where the main provided image (\`src="${IMAGE_PLACEHOLDER_SRC}"\`) could be central if not exclusively used in the Theory tab, or another relevant visual could be generated or described for interactive purposes.
+            *   **Interactivity**: Use elements like sliders, buttons that trigger changes, or an interactive diagram. The interaction should be meaningful and related to the \`{{{suggestedKeywords}}}\`.
             *   If charting is essential and feasible, use a simple approach (e.g., CSS-based bar chart or very basic SVG). If using a library, it MUST be from CDNJS (e.g., a very lightweight chart library if absolutely needed, but prefer native solutions).
-        *   **"📝 Quiz"**: A short multiple-choice quiz (4-5 questions) to test understanding.
-            *   Functionality: Show feedback (correct/incorrect) after each question or at the end. Display a score.
-        *   **"💡 Summary"**: Recap of key learning points.
 
 3.  **Design and UI/UX:**
     *   **Modern Aesthetic**: Aim for a clean, modern, and professional look. Consider using subtle gradients, perhaps a touch of glassmorphism on elements like cards or tab containers if it enhances clarity without clutter.
@@ -81,11 +81,11 @@ You will be provided with a main image. In the HTML you generate, you MUST use t
     *   **Typography**: Use clear, legible sans-serif fonts (e.g., system-ui, Arial, Helvetica).
     *   **Micro-animations**: Implement subtle hover effects, smooth transitions for tab changes, and other small animations to enhance user experience.
     *   **Responsiveness**: The entire module MUST be mobile-friendly and adapt gracefully to different screen sizes. Use flexbox/grid for layout.
-    *   **Branding**: Display the \`{{{moduleTitle}}}\` prominently, perhaps in a header.
+    *   **Branding**: Display the \`{{{moduleTitle}}}\` prominently, perhaps in a header or within the "Theory" tab as an H1.
 
 4.  **Technical Requirements:**
-    *   **JavaScript for Interactivity**: Implement all dynamic behaviors (tabs, flashcards, quiz, demo interactions) using vanilla JavaScript.
-    *   **No localStorage/sessionStorage**: All state (e.g., quiz scores, flashcard order) must be managed within JavaScript variables/objects for the current session.
+    *   **JavaScript for Interactivity**: Implement all dynamic behaviors (tabs, flashcards, demo interactions) using vanilla JavaScript. Ensure this JavaScript is functional.
+    *   **No localStorage/sessionStorage**: All state (e.g., flashcard order) must be managed within JavaScript variables/objects for the current session.
     *   **Performance**: Ensure smooth animations and fast load times. Optimize CSS and JS.
     *   **Error Handling**: While complex error handling isn't expected, ensure JavaScript interactions are robust (e.g., check for element existence before manipulating).
     *   **Code Comments**: Add brief comments in HTML, CSS, and JS to explain complex parts or sections.
@@ -93,14 +93,14 @@ You will be provided with a main image. In the HTML you generate, you MUST use t
 **Output Format:**
 Provide ONLY the complete HTML content as a string in the 'htmlContent' field.
 
-**Example of how to use the image placeholder (adapt as needed within your structure):**
+**Example of how to use the image placeholder (adapt as needed within your structure, especially for the Theory tab's left column):**
 \`<img src="${IMAGE_PLACEHOLDER_SRC}" alt="Visual representation for {{{moduleTitle}}}" style="max-width: 100%; height: auto; border-radius: 8px;" />\`
 
 **Content Generation Guidance:**
 *   Use the \`{{{moduleTitle}}}\` and \`{{{animationConcept}}}\` to generate plausible and relevant educational content for each tab.
 *   The \`{{{suggestedKeywords}}}\` can inspire the type of interactivity in the "Visual Demo" tab.
 
-Make sure the output is a single, complete, and functional HTML file. Prioritize creating a working, interactive, and well-designed educational module based on all the above requirements.
+Make sure the output is a single, complete, and functional HTML file. Prioritize creating a working, interactive, and well-designed educational module based on all the above requirements. Ensure the flashcards are fully interactive (flip and shuffle).
 `,
 });
 
@@ -126,3 +126,4 @@ const generateAnimationCodeFlow = ai.defineFlow(
     return { htmlContent: finalHtmlContent };
   }
 );
+
