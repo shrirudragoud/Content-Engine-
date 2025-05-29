@@ -51,7 +51,7 @@ export function AcademicModuleCreator() {
     if (!isClient || !audioElement) {
       return;
     }
-
+    
     const handleAudioError = (event: Event) => {
       const targetAudioElement = event.target as HTMLAudioElement;
       const mediaError = targetAudioElement.error;
@@ -59,22 +59,24 @@ export function AcademicModuleCreator() {
       
       let errorMessage = "Audio playback failed: Unknown error.";
 
-      console.error("--- Audio Playback Error Details ---");
-      console.error("Failed Audio Source (first 200 chars):", currentAudioSrc ? currentAudioSrc.substring(0, 200) + (currentAudioSrc.length > 200 ? "..." : "") : "N/A");
+      console.log("--- Audio Playback Error Details ---");
+      console.log("Failed Audio Source (first 200 chars):", currentAudioSrc ? currentAudioSrc.substring(0, 200) + (currentAudioSrc.length > 200 ? "..." : "") : "N/A");
       
       if (currentAudioSrc && currentAudioSrc.startsWith("data:")) {
-        console.error("Full Failed Audio Data URI (inspect in console):");
-        console.error(currentAudioSrc);
+        console.log("Full Failed Audio Data URI (inspect in console):");
+        console.log(currentAudioSrc); // Log the full data URI for inspection
       }
 
       if (mediaError) {
+        // Create a plain object for more reliable logging of MediaError properties
         const mediaErrorDetails: Record<string, any> = { code: mediaError.code, message: mediaError.message };
         for (const key in mediaError) {
+            // Avoid trying to serialize functions or complex objects that might not log well
             if (Object.prototype.hasOwnProperty.call(mediaError, key) && typeof (mediaError as any)[key] !== 'function') {
                 mediaErrorDetails[key] = (mediaError as any)[key];
             }
         }
-        console.error("MediaError Object Details:", mediaErrorDetails);
+        console.log("MediaError Object Details:", mediaErrorDetails);
 
         switch (mediaError.code) {
           case mediaError.MEDIA_ERR_ABORTED:
@@ -87,16 +89,16 @@ export function AcademicModuleCreator() {
             errorMessage = "Audio playback failed: The audio data could not be decoded. The file might be corrupted or the format, while recognized, is unparsable.";
             break;
           case mediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-            errorMessage = "Audio playback failed: The audio format (e.g., codec or container) from the AI is not supported by your browser, or the data URI is invalid. Check the console for the full audio data URI and MediaError details.";
+            errorMessage = "Audio playback failed: The audio format (e.g., codec or container) provided by the AI is not supported by your browser or the source URI is invalid. Please check the console for the audio data URI's MIME type and full MediaError details.";
             break;
           default:
             errorMessage = `Audio playback failed with an unknown error code: ${mediaError.code}. Refer to MediaError details in console.`;
         }
       } else {
-         console.error("MediaError object was null or undefined at the time of error handling.");
+         console.log("MediaError object was null or undefined at the time of error handling.");
       }
-      console.error("Final Error Message for UI:", errorMessage);
-      console.error("--- End Audio Playback Error Details ---");
+      console.log("Final Error Message for UI:", errorMessage);
+      console.log("--- End Audio Playback Error Details ---");
       
       toast({
         title: "Audio Playback Error",
@@ -111,15 +113,13 @@ export function AcademicModuleCreator() {
       console.log("AcademicModuleCreator: Received audioDataUri (first 100 chars):", audioDataUri.substring(0, 100));
       if (audioElement.src !== audioDataUri) {
         audioElement.src = audioDataUri;
-        audioElement.load(); 
+        audioElement.load(); // Explicitly load the new source
       }
 
       const playPromise = audioElement.play();
       if (playPromise !== undefined) {
         playPromise.catch(err => {
-          // Error handler 'handleAudioError' will catch most playback failures.
-          // This catch is primarily for play() specific issues like NotAllowedError or if the 'error' event hasn't fired yet.
-          console.error("Audio play() promise rejected:", err);
+          console.log("Audio play() promise rejected:", err);
           if (err.name === 'NotAllowedError') {
             toast({
               title: "Audio Autoplay Blocked",
@@ -129,11 +129,10 @@ export function AcademicModuleCreator() {
           } else if (err.name === 'NotSupportedError' && !audioElement.error) {
             toast({
               title: "Audio Playback Error",
-              description: "The browser reported it cannot play this audio format before a formal 'error' event. Check console for details on the audio source.",
+              description: "The browser reported it cannot play this audio format. Check console for details on the audio source and MediaError.",
               variant: "destructive"
             });
           } else if (err.name !== 'NotSupportedError' && err.name !== 'AbortError' && !audioElement.error) { 
-             // Avoid double-toasting if 'error' event will handle it. AbortError is also common if src changes rapidly.
             toast({
               title: "Audio Playback Issue",
               description: `Could not play audio: ${err.message || 'Unknown error during play attempt'}.`,
@@ -154,7 +153,6 @@ export function AcademicModuleCreator() {
       if (audioElement) {
         audioElement.removeEventListener('error', handleAudioError);
         audioElement.pause();
-        // It's good practice to revoke object URLs if they were used, but not applicable for data URIs here.
       }
     };
   }, [isClient, audioDataUri, toast]);
@@ -262,8 +260,8 @@ export function AcademicModuleCreator() {
 
   return (
     <div className="w-full max-w-full flex flex-col md:flex-row gap-6 flex-grow">
-      {/* Left Panel */}
-      <Card className="md:w-1/3 lg:w-1/4 flex flex-col space-y-4 p-4 sm:p-6 shadow-lg h-fit md:max-h-[calc(100vh-120px)] md:overflow-y-auto">
+      {/* Left Panel - Adjusted to be narrower */}
+      <Card className="md:w-1/4 lg:w-1/5 flex flex-col space-y-4 p-4 sm:p-6 shadow-lg h-fit md:max-h-[calc(100vh-120px)] md:overflow-y-auto">
         <div>
           <Label htmlFor="topic" className="text-base sm:text-lg font-semibold">Academic Topic</Label>
           <Input
@@ -387,8 +385,8 @@ export function AcademicModuleCreator() {
         )}
       </Card>
 
-      {/* Right Panel - Module Preview */}
-      <Card className="md:w-2/3 lg:w-3/4 flex-grow p-4 sm:p-6 shadow-lg md:max-h-[calc(100vh-120px)] flex flex-col">
+      {/* Right Panel - Adjusted to be wider */}
+      <Card className="md:w-3/4 lg:w-4/5 flex-grow p-4 sm:p-6 shadow-lg md:max-h-[calc(100vh-120px)] flex flex-col">
         {(() => {
           if (isPreviewReady) {
             return (
